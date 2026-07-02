@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f6b4f">
+<title>Panel de Alquileres</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef2ee; --surface:#ffffff; --ink:#16211d; --muted:#66756f; --line:#e2e8e3;
+    --green:#0f6b4f; --green-soft:#e4f2eb; --amber:#c47f16; --amber-soft:#fbf1dd;
+    --red:#c0304a; --red-soft:#fbe6ea; --blue:#2b5a8c; --wa:#1f9d55; --wa-soft:#e6f6ec;
+    --radius:16px; --shadow:0 1px 2px rgba(22,33,29,.05), 0 8px 24px rgba(22,33,29,.06);
+    font-family:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{padding-bottom:calc(78px + env(safe-area-inset-bottom));line-height:1.45;-webkit-text-size-adjust:100%}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select{font-family:inherit;font-size:16px}
+  a{color:inherit}
+
+  header{position:sticky;top:0;z-index:30;background:var(--green);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 18px 14px}
+  .wrap{max-width:820px;margin:0 auto}
+  .head-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .head-title{font-size:18px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+  .head-title .dot{width:9px;height:9px;border-radius:50%;background:#8fe3bf}
+  .icon-btn{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.16);display:grid;place-items:center;font-size:19px}
+  .icon-btn:active{background:rgba(255,255,255,.28)}
+  .month-bar{display:flex;align-items:center;justify-content:space-between;margin-top:14px;background:rgba(255,255,255,.14);border-radius:14px;padding:5px}
+  .month-bar button{width:44px;height:40px;border-radius:10px;font-size:20px;color:#fff;display:grid;place-items:center}
+  .month-bar button:active{background:rgba(255,255,255,.2)}
+  .month-label{font-weight:700;font-size:15.5px;text-transform:capitalize;cursor:pointer;padding:6px 14px;border-radius:9px}
+  .month-label:active{background:rgba(255,255,255,.15)}
+
+  main{max-width:820px;margin:0 auto;padding:16px 14px 8px}
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  h2.section{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 4px 10px}
+  h2.section:first-child{margin-top:6px}
+
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:6px}
+  .stat{background:var(--surface);border-radius:var(--radius);padding:13px 12px;box-shadow:var(--shadow)}
+  .stat .k{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+  .stat .v{font-size:17px;font-weight:800;margin-top:4px;letter-spacing:-.02em}
+  .stat.pos .v{color:var(--green)} .stat.warn .v{color:var(--amber)}
+
+  .alert{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--amber-soft);border:1px solid #f0dcae;border-radius:14px;padding:12px 14px;margin:12px 0 2px;cursor:pointer;width:100%;text-align:left}
+  .alert .txt{font-size:13px;font-weight:700;color:var(--amber)}
+  .alert .go{font-size:18px;color:var(--amber)}
+  .alert-red{background:var(--red-soft);border-color:#f2c4cd;cursor:default}
+  .alert-red .txt{color:var(--red)}
+
+  .controls{display:flex;gap:8px;margin:14px 0 8px}
+  .controls input,.controls select{flex:1;min-width:0;padding:11px 13px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink)}
+  .controls input:focus,.controls select:focus{outline:none;border-color:var(--green)}
+  .progress{font-size:12.5px;color:var(--muted);font-weight:600;margin:2px 4px 12px;display:flex;align-items:center;gap:7px}
+  .progress .bar{flex:1;height:6px;background:var(--line);border-radius:99px;overflow:hidden}
+  .progress .bar i{display:block;height:100%;background:var(--green);border-radius:99px;transition:.3s}
+
+  .cards{display:block}
+  @media(min-width:640px){.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:11px;align-items:start}.cards>.card{margin-bottom:0}}
+
+  .card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px;margin-bottom:11px}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:2px}
+  .card-name{font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .card-sub{font-size:13px;color:var(--muted);margin-top:1px}
+  .owner-tag{font-size:11px;font-weight:600;color:var(--green);background:var(--green-soft);padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .flow-tag{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
+  .flow-pasa{color:var(--blue);background:#e7eef7} .flow-directo{color:var(--muted);background:#eef1ef}
+
+  .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}
+  .chip{border:1.5px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;transition:.12s;background:#fbfcfb}
+  .chip .lbl{font-size:11px;font-weight:600;color:var(--muted)}
+  .chip .amt{font-size:13.5px;font-weight:700;margin-top:2px}
+  .chip .mk{font-size:11px;font-weight:700;margin-top:5px;color:var(--red)}
+  .chip.paid{border-color:var(--green);background:var(--green-soft)}
+  .chip.paid .lbl,.chip.paid .amt,.chip.paid .mk{color:var(--green)}
+  .chip:active{transform:scale(.96)}
+  .chip.na{opacity:.4;pointer-events:none}
+
+  .adj-banner{margin-top:12px;background:var(--amber-soft);border:1px solid #f0dcae;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;justify-content:space-between}
+  .adj-banner .txt{font-size:12.5px;font-weight:600;color:var(--amber)}
+  .adj-banner button{font-size:12.5px;font-weight:700;color:#fff;background:var(--amber);padding:7px 12px;border-radius:9px}
+
+  .estado-badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .est-ok{color:var(--green);background:var(--green-soft)}
+  .est-warn{color:var(--amber);background:var(--amber-soft)}
+  .est-bad{color:var(--red);background:var(--red-soft)}
+  .status-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+  .status-seg button{padding:9px 4px;border-radius:10px;border:1.5px solid var(--line);font-size:12px;font-weight:600;background:#fbfcfb;color:var(--muted)}
+  .status-seg button.on-ok{border-color:var(--green);background:var(--green-soft);color:var(--green)}
+  .status-seg button.on-warn{border-color:var(--amber);background:var(--amber-soft);color:var(--amber)}
+  .status-seg button.on-bad{border-color:var(--red);background:var(--red-soft);color:var(--red)}
+
+  .contact{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--wa);background:var(--wa-soft);padding:8px 13px;border-radius:11px;text-decoration:none;margin-top:12px}
+  .wa-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .wa-row .contact{margin-top:0}
+
+  .liq-line{display:flex;justify-content:space-between;font-size:13.5px;padding:5px 0;gap:10px}
+  .liq-line.tot{border-top:1px dashed var(--line);margin-top:6px;padding-top:9px;font-weight:800;font-size:15px}
+  .liq-line .neg{color:var(--red)} .liq-line .pos{color:var(--green)}
+  .mini-list{margin-top:9px;border-top:1px solid var(--line);padding-top:9px}
+  .mini-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);padding:3px 0;gap:10px}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;font-size:15px;border-radius:13px;padding:14px 18px;width:100%;transition:.12s}
+  .btn-primary{background:var(--green);color:#fff} .btn-primary:active{background:#0b5540}
+  .btn-ghost{background:var(--surface);color:var(--green);box-shadow:var(--shadow)}
+  .btn-danger{background:var(--red-soft);color:var(--red)}
+  .btn-sm{padding:9px 14px;font-size:13px;width:auto}
+
+  .empty{text-align:center;color:var(--muted);padding:48px 24px}
+  .empty .em{font-size:34px;margin-bottom:10px}
+  .empty p{font-size:14.5px;margin:0 0 18px}
+
+  nav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(22,33,29,.05)}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;border-radius:12px;color:var(--muted);font-size:11px;font-weight:600}
+  .tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tab.active{color:var(--green)}
+
+  .sheet-bg{position:fixed;inset:0;background:rgba(20,33,29,.45);z-index:50;display:none;align-items:flex-end;justify-content:center}
+  .sheet-bg.open{display:flex}
+  .sheet{background:var(--surface);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:8px 20px calc(24px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto;animation:up .28s cubic-bezier(.2,.8,.2,1)}
+  @media(min-width:640px){.sheet{border-radius:22px;margin-bottom:6vh}}
+  @keyframes up{from{transform:translateY(100%)}to{transform:none}}
+  .grab{width:40px;height:4px;background:var(--line);border-radius:99px;margin:8px auto 14px}
+  .sheet h3{font-size:19px;font-weight:800;margin:0 0 4px;letter-spacing:-.01em}
+  .sheet .hint{font-size:13px;color:var(--muted);margin:0 0 16px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--ink)}
+  .field input,.field select{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fbfcfb;transition:.12s;color:var(--ink)}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--green);background:#fff}
+  .field .sub{font-size:11.5px;color:var(--muted);margin-top:5px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .seg button{padding:12px;border-radius:12px;border:1.5px solid var(--line);font-weight:600;font-size:13.5px;background:#fbfcfb;color:var(--muted);text-align:center}
+  .seg button.on{border-color:var(--green);background:var(--green-soft);color:var(--green)}
+  .sheet-actions{display:flex;gap:10px;margin-top:6px}
+  .sheet-actions .btn{width:auto;flex:1}
+
+  .add-fab{margin:6px 0 4px}
+  .toast{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:60;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow)}
+  .toast.show{opacity:1;transform:translate(-50%,-6px)}
+  .settings-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);margin-bottom:10px}
+  .settings-item .t{font-weight:600;font-size:14.5px} .settings-item .d{font-size:12px;color:var(--muted);margin-top:2px}
+  .owner-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .owner-row:last-child{border-bottom:none}
+  .owner-row .nm{font-weight:600;font-size:14px} .owner-row .sm{font-size:11.5px;color:var(--muted)}
+  .owner-row .acts{display:flex;gap:6px}
+  .owner-row .acts button{padding:7px 11px;border-radius:9px;font-size:12.5px;font-weight:600}
+  .paid-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .pill-ok{color:var(--green);background:var(--green-soft)} .pill-debt{color:var(--red);background:var(--red-soft)}
+  .pill-warn{color:var(--amber);background:var(--amber-soft)} .pill-neutral{color:var(--muted);background:#eef1ef}
+  .gar-note{margin-top:10px;background:var(--red-soft);border:1px solid #f2c4cd;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;color:var(--red)}
+
+  .gate{position:fixed;inset:0;z-index:70;background:linear-gradient(160deg,#0f6b4f,#0b5540);display:none;padding:24px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .gate.show{display:flex}
+  .gate-card{background:var(--surface);border-radius:22px;max-width:400px;width:100%;padding:30px 24px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto}
+  .gate-emoji{font-size:44px;margin-bottom:6px;line-height:1}
+  .gate-card h2{font-size:22px;font-weight:800;margin:0 0 8px;letter-spacing:-.01em}
+  .gate-p{font-size:14px;color:var(--muted);margin:0 0 18px;line-height:1.5}
+  .gate-p b{color:var(--ink);font-weight:700}
+  .pin-input{width:100%;text-align:center;letter-spacing:.35em;font-size:22px;font-weight:700;padding:14px;border:1.5px solid var(--line);border-radius:14px;background:#fbfcfb;margin-bottom:12px;color:var(--ink)}
+  .pin-input:focus{outline:none;border-color:var(--green)}
+  .gate-err{color:var(--red);font-size:13px;font-weight:600;min-height:18px;margin-bottom:4px}
+  .gate-link{color:var(--muted);font-size:13px;font-weight:600;margin-top:12px;display:block;width:100%}
+  .ob-dots{display:flex;gap:6px;justify-content:center;margin:22px 0 16px}
+  .ob-dots .dot{width:7px;height:7px;border-radius:50%;background:var(--line);transition:.2s}
+  .ob-dots .dot.on{background:var(--green);width:20px;border-radius:99px}
+  .ob-nav{display:flex;gap:10px}
+  .ob-nav .btn{flex:1;width:auto}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate"></div>
+
+<header>
+  <div class="wrap">
+    <div class="head-row">
+      <div class="head-title"><span class="dot"></span><span id="headTitle">Este mes</span></div>
+      <button class="icon-btn" onclick="openSettings()" aria-label="Ajustes">&#9881;</button>
+    </div>
+    <div class="month-bar" id="monthBar">
+      <button onclick="changeMonth(-1)" aria-label="Mes anterior">&#8249;</button>
+      <div class="month-label" id="monthLabel" onclick="goToday()" title="Ir al mes actual">&mdash;</div>
+      <button onclick="changeMonth(1)" aria-label="Mes siguiente">&#8250;</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="view active" id="view-mes"></section>
+  <section class="view" id="view-duenos"></section>
+  <section class="view" id="view-alquileres"></section>
+  <section class="view" id="view-deptos"></section>
+</main>
+
+<nav>
+  <button class="tab active" data-tab="mes" onclick="go('mes')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>Mes</button>
+  <button class="tab" data-tab="duenos" onclick="go('duenos')"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg>Dueños</button>
+  <button class="tab" data-tab="alquileres" onclick="go('alquileres')"><svg viewBox="0 0 24 24"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0"/><path d="m7.5 12.5 3 3L22 5"/></svg>Nuevos</button>
+  <button class="tab" data-tab="deptos" onclick="go('deptos')"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg>Deptos</button>
+</nav>
+
+<div class="sheet-bg" id="sheetBg" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============================================================
+   ⬇️⬇️⬇️  PEGÁ ACÁ TUS DATOS DE SUPABASE  ⬇️⬇️⬇️
+   Los sacás de: Supabase → Project Settings → API
+   (ver la GUÍA, Parte 1, paso 8)
+   ============================================================ */
+const SUPABASE_URL = "https://rxserrwtacbzvnsrfcqi.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Uueli_cwTBHqc-3qwAOBMw_hEfpJX3i";
+/* ============================================================
+   ⬆️⬆️⬆️  NO TOQUES NADA MÁS ABAJO  ⬆️⬆️⬆️
+   ============================================================ */
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let sbUser = null, remoteReady = false;
+
+const KEY='panel_alquileres_v1';
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+let state=load(), currentTab='mes', ym=ymNow();
+let mesQuery='', mesOwner='all';
+
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.duenos){if(!s.config)s.config={onboarded:s.deptos&&s.deptos.length>0,organizador:{nombre:'',tel:''},pin:'',cobranza:{diasRecordar:5,diasReclamar:10}};if(!s.config.organizador)s.config.organizador={nombre:'',tel:''};if(!s.config.cobranza)s.config.cobranza={diasRecordar:5,diasReclamar:10};return s;}}catch(e){}return {duenos:[],deptos:[],pagos:{},alquileres:[],config:{onboarded:false,organizador:{nombre:'',tel:''},pin:'',cobranza:{diasRecordar:5,diasReclamar:10}}};}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));pushRemote();}
+let pushT;
+function pushRemote(){
+  if(!sbUser||!remoteReady)return;
+  clearTimeout(pushT);
+  pushT=setTimeout(async()=>{
+    try{await sb.from('panel_data').upsert({user_id:sbUser.id,data:state,updated_at:new Date().toISOString()});}
+    catch(e){console.warn('No se pudo guardar en la nube:',e);}
+  },700);
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+function ymNow(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function ymLabel(v){const[y,m]=v.split('-');return MESES[+m-1]+' '+y;}
+function shiftYm(v,n){let[y,m]=v.split('-').map(Number);m+=n;while(m<1){m+=12;y--;}while(m>12){m-=12;y++;}return y+'-'+String(m).padStart(2,'0');}
+function monthsBetween(a,b){const[ay,am]=a.split('-').map(Number);const[by,bm]=b.split('-').map(Number);return (by-ay)*12+(bm-am);}
+const money=n=>(n<0?'-':'')+'$'+new Intl.NumberFormat('es-AR',{maximumFractionDigits:0}).format(Math.abs(Math.round(n||0)));
+function esc(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const digits=t=>(t||'').replace(/[^0-9]/g,'');
+function owner(id){return state.duenos.find(d=>d.id===id);}
+function ownerName(id){const o=owner(id);return o?o.nombre:'Sin dueño';}
+function comision(dep){return (dep.alquiler||0)*(dep.comisionPct||0)/100;}
+function pagos(deptoId){const m=state.pagos[ym]||{};return m[deptoId]||{alq:false,exp:false,ser:false};}
+function setPago(deptoId,k){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};state.pagos[ym][deptoId][k]=!state.pagos[ym][deptoId][k];save();render();}
+function estaAlDia(dep){const p=pagos(dep.id);return p.alq&&(!dep.expensas||p.exp)&&(!dep.servicios||p.ser);}
+function ajustePendiente(dep){if(!dep.contratoInicio||!dep.ajusteMeses)return false;const els=monthsBetween(dep.contratoInicio,ym);if(els<=0||els%dep.ajusteMeses!==0)return false;return !(dep.ajustes||[]).some(a=>a.ym===ym);}
+
+/* Estado de ocupación / vencimiento (relativo al mes REAL) */
+function ocupacion(dep){
+  const e=dep.estado||'alquilado';
+  if(e==='vacio')return{code:'vacio',label:'Vacío — publicá ya',cls:'est-bad',urg:3};
+  if(e==='publicado')return{code:'publicado',label:'Publicado, buscando inquilino',cls:'est-warn',urg:2};
+  const ml=dep.contratoFin?monthsBetween(ymNow(),dep.contratoFin):null;
+  if(ml===null)return{code:'ok',label:'Alquilado',cls:'est-ok',urg:0,ml:null};
+  if(ml<0)return{code:'vencido',label:'Contrato vencido',cls:'est-bad',urg:3,ml};
+  if(ml===0)return{code:'vence',label:'Vence este mes',cls:'est-bad',urg:2,ml};
+  if(ml<=3)return{code:'porvencer',label:'Vence en '+ml+(ml===1?' mes':' meses'),cls:'est-warn',urg:1,ml};
+  return{code:'ok',label:'Vence en '+ml+' meses',cls:'est-ok',urg:0,ml};
+}
+function pipeline(){return state.deptos.map(d=>({dep:d,oc:ocupacion(d)})).filter(x=>x.oc.urg>0).sort((a,b)=>b.oc.urg-a.oc.urg||((a.oc.ml==null?99:a.oc.ml)-(b.oc.ml==null?99:b.oc.ml)));}
+
+function go(tab){currentTab=tab;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById('view-'+tab).classList.add('active');const titles={mes:'Este mes',duenos:'Liquidación por dueño',alquileres:'Alquileres y vencimientos',deptos:'Departamentos'};document.getElementById('headTitle').textContent=titles[tab];document.getElementById('monthBar').style.display=(tab==='deptos'||tab==='alquileres')?'none':'flex';window.scrollTo(0,0);render();}
+function changeMonth(n){ym=shiftYm(ym,n);render();}
+function goToday(){ym=ymNow();render();toast('Mes actual');}
+
+function render(){document.getElementById('monthLabel').innerHTML=ymLabel(ym);if(currentTab==='mes')renderMes();if(currentTab==='duenos')renderDuenos();if(currentTab==='alquileres')renderAlquileres();if(currentTab==='deptos')renderDeptos();}
+
+function renderMes(){
+  const el=document.getElementById('view-mes');
+  if(state.deptos.length===0){el.innerHTML=empty('&#127968;','Todavía no cargaste departamentos.','Agregá el primero desde la pestaña “Deptos”.');return;}
+  let cobrado=0,aLiquidar=0,comTotal=0,alDia=0;
+  state.deptos.forEach(dep=>{
+    if(estaAlDia(dep))alDia++;
+    const p=pagos(dep.id);
+    if(p.alq){const c=comision(dep);comTotal+=c;if(dep.modalidad==='pasa'){cobrado+=dep.alquiler||0;aLiquidar+=(dep.alquiler||0)-c;}else{aLiquidar-=c;}}
+  });
+  const pct=Math.round(alDia/state.deptos.length*100);
+  let html=`<div class="summary">
+    <div class="stat pos"><div class="k">Cobrado</div><div class="v">${money(cobrado)}</div></div>
+    <div class="stat"><div class="k">A liquidar</div><div class="v">${money(aLiquidar)}</div></div>
+    <div class="stat warn"><div class="k">Comisión</div><div class="v">${money(comTotal)}</div></div>
+  </div>`;
+
+  const pipe=pipeline();
+  if(pipe.length){html+=`<button class="alert" onclick="go('alquileres')"><span class="txt">⏳ ${pipe.length} ${pipe.length===1?'depto necesita':'deptos necesitan'} atención — vencimientos / disponibles</span><span class="go">›</span></button>`;}
+  let critCount=0;state.deptos.forEach(d=>{if(cobranza(d).nivel==='critico')critCount++;});
+  if(critCount){html+=`<div class="alert alert-red"><span class="txt">🔴 ${critCount} ${critCount===1?'pago crítico — corresponde reclamar a la garantía':'pagos críticos — corresponde reclamar a la garantía'}</span></div>`;}
+
+  const ownerOpts=state.duenos.map(o=>`<option value="${o.id}" ${mesOwner===o.id?'selected':''}>${esc(o.nombre)}</option>`).join('');
+  html+=`<div class="controls">
+    <input id="mesSearch" placeholder="Buscar depto o inquilino…" value="${esc(mesQuery)}" oninput="onMesSearch(this.value)">
+    <select onchange="onMesOwner(this.value)"><option value="all">Todos los dueños</option>${ownerOpts}</select>
+  </div>
+  <div class="progress"><span>Al día ${alDia}/${state.deptos.length}</span><span class="bar"><i style="width:${pct}%"></i></span><span>${pct}%</span></div>`;
+
+  let list=state.deptos.filter(dep=>{
+    if(mesOwner!=='all'&&dep.duenoId!==mesOwner)return false;
+    if(mesQuery){const q=mesQuery.toLowerCase();if(!((dep.nombre||'').toLowerCase().includes(q)||(dep.inquilino||'').toLowerCase().includes(q)))return false;}
+    return true;
+  }).sort((a,b)=>{const sa=estaAlDia(a)?1:0,sb=estaAlDia(b)?1:0;return sa-sb||(a.nombre||'').localeCompare(b.nombre||'');});
+
+  if(list.length===0){html+=empty('&#128269;','Sin resultados.','Probá con otro nombre o quitá el filtro.');el.innerHTML=html;return;}
+  html+='<div class="cards">';
+  list.forEach(dep=>{
+    const p=pagos(dep.id);const cb=cobranza(dep);const[ptxt,pcls]=PILL[cb.nivel]||PILL.pendiente;
+    const showWa=['recordar','critico','pendiente'].includes(cb.nivel)&&dep.telInquilino;
+    const wa=showWa?`<a class="contact" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,cb.nivel))}" target="_blank" rel="noopener">${cb.nivel==='critico'?'⚠️ Reclamar al inquilino':'💬 Recordar pago'}</a>`:'';
+    const waGar=(cb.nivel==='critico'&&dep.garantiaTel)?`<a class="contact" style="color:var(--red);background:var(--red-soft)" href="https://wa.me/${digits(dep.garantiaTel)}?text=${encodeURIComponent(garantiaText(dep))}" target="_blank" rel="noopener">🛡️ Avisar a garantía</a>`:'';
+    const garNote=(cb.nivel==='critico')?`<div class="gar-note">🔴 Corresponde reclamar a la garantía${cb.dias?' · '+cb.dias+' días hábiles del mes':''}${dep.garantiaEmpresa?' · '+esc(dep.garantiaEmpresa):''}.</div>`:'';
+    html+=`<div class="card">
+      <div class="card-top">
+        <div><div class="card-name">${esc(dep.nombre)}</div>
+        <div class="card-sub">${esc(dep.inquilino||'Sin inquilino')} · <span class="owner-tag">${esc(ownerName(dep.duenoId))}</span></div></div>
+        <span class="paid-pill ${pcls}">${ptxt}</span>
+      </div>
+      <div class="chips">
+        ${chip(dep,'alq','Alquiler',dep.alquiler,p.alq,false,false)}
+        ${chip(dep,'exp','Expensas',dep.expensas,p.exp,!dep.expensas,false)}
+        ${chip(dep,'ser','Servicios',null,p.ser,!dep.servicios,true)}
+      </div>
+      ${garNote}
+      ${(wa||waGar)?`<div class="wa-row">${wa}${waGar}</div>`:''}
+      ${ajustePendiente(dep)?`<div class="adj-banner"><span class="txt">&#9201; Toca ajuste por IPC</span><button onclick="openAjuste('${dep.id}')">Aplicar</button></div>`:''}
+    </div>`;
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+function onMesSearch(v){mesQuery=v;renderMes();const i=document.getElementById('mesSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
+function onMesOwner(v){mesOwner=v;renderMes();}
+function chip(dep,k,lbl,amt,paid,na,noAmount){if(na)return `<div class="chip na"><div class="lbl">${lbl}</div><div class="amt">—</div></div>`;const amtHtml=noAmount?`<div class="amt" style="color:var(--muted);font-size:11px">agua·luz·gas</div>`:`<div class="amt">${money(amt)}</div>`;return `<button class="chip ${paid?'paid':''}" onclick="setPago('${dep.id}','${k}')"><div class="lbl">${lbl}</div>${amtHtml}<div class="mk">${paid?'✓ Pagó':'Pendiente'}</div></button>`;}
+
+function renderDuenos(){
+  const el=document.getElementById('view-duenos');
+  if(state.duenos.length===0){el.innerHTML=empty('&#128101;','No hay dueños cargados.','Agregalos desde la pestaña “Deptos”.');return;}
+  let html='<div class="cards">',any=false;
+  state.duenos.forEach(d=>{
+    const deps=state.deptos.filter(x=>x.duenoId===d.id);if(deps.length===0)return;any=true;
+    let cobrado=0,com=0,neto=0;const rows=[];
+    deps.forEach(dep=>{const p=pagos(dep.id),c=comision(dep);let linea;
+      if(p.alq){com+=c;if(dep.modalidad==='pasa'){cobrado+=dep.alquiler||0;neto+=(dep.alquiler||0)-c;linea=money((dep.alquiler||0)-c);}else{neto-=c;linea='−'+money(c)+' com.';}}
+      else linea='sin cobrar';
+      rows.push(`<div class="mini-row"><span>${esc(dep.nombre)} · ${dep.modalidad==='pasa'?'pasa':'directo'}</span><span>${linea}</span></div>`);});
+    const debe=neto>=0;
+    const wa=d.telefono?`<a class="contact" href="https://wa.me/${digits(d.telefono)}?text=${encodeURIComponent('Hola'+(d.nombre?' '+d.nombre:'')+'!')}" target="_blank" rel="noopener">💬 WhatsApp</a>`:'';
+    html+=`<div class="card">
+      <div class="card-top"><div class="card-name">${esc(d.nombre)}</div><span class="owner-tag">${deps.length} ${deps.length===1?'depto':'deptos'}</span></div>
+      <div class="liq-line"><span>Alquileres cobrados (pasan por vos)</span><span>${money(cobrado)}</span></div>
+      <div class="liq-line"><span>Tu comisión</span><span class="pos">${money(com)}</span></div>
+      <div class="liq-line tot"><span>${debe?'Le tenés que liquidar':'El dueño te debe'}</span><span class="${debe?'':'neg'}">${money(Math.abs(neto))}</span></div>
+      <div class="mini-list">${rows.join('')}</div>
+      ${wa}</div>`;
+  });
+  html+='</div>';
+  el.innerHTML=any?html:empty('&#128101;','Los dueños todavía no tienen deptos asignados.','Asignalos desde “Deptos”.');
+}
+
+function renderAlquileres(){
+  const el=document.getElementById('view-alquileres');
+  let html='';
+  // ---- Disponibilidad y vencimientos ----
+  const pipe=pipeline();
+  html+='<h2 class="section" style="margin-top:6px">Disponibilidad y vencimientos</h2>';
+  if(pipe.length===0){
+    html+=`<div class="card" style="text-align:center;color:var(--muted)"><div style="font-size:26px">✅</div><div style="font-size:13.5px;margin-top:6px">Todo alquilado y sin vencimientos cercanos.</div><div style="font-size:12px;margin-top:3px">Cargá el fin de contrato en cada depto para anticiparte.</div></div>`;
+  }else{
+    html+='<div class="cards">';
+    pipe.forEach(({dep,oc})=>{
+      html+=`<div class="card">
+        <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(ownerName(dep.duenoId))}${dep.contratoFin?' · fin '+dep.contratoFin:''}</div></div>
+        <span class="estado-badge ${oc.cls}">${oc.label}</span></div>
+        <div class="status-seg">
+          <button class="${(dep.estado||'alquilado')==='alquilado'?'on-ok':''}" onclick="setEstado('${dep.id}','alquilado')">Alquilado</button>
+          <button class="${dep.estado==='publicado'?'on-warn':''}" onclick="setEstado('${dep.id}','publicado')">Publicado</button>
+          <button class="${dep.estado==='vacio'?'on-bad':''}" onclick="setEstado('${dep.id}','vacio')">Vacío</button>
+        </div>
+        <div class="sheet-actions" style="margin-top:10px">
+          <button class="btn btn-ghost btn-sm" onclick="openDepto('${dep.id}')">Editar contrato</button>
+          <button class="btn btn-primary btn-sm" onclick="openAlquiler('${dep.id}')">Registrar alquiler</button>
+        </div></div>`;
+    });
+    html+='</div>';
+  }
+  // ---- Registro de alquileres nuevos (garantías) ----
+  html+=`<div class="add-fab" style="margin-top:18px"><button class="btn btn-primary" onclick="openAlquiler()">+ Registrar alquiler nuevo</button></div>`;
+  const list=[...state.alquileres].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  if(list.length===0){html+=empty('&#128273;','Sin alquileres nuevos registrados.','Cuando alquiles un depto liberado, registralo acá con la comisión de garantía.');el.innerHTML=html;return;}
+  let totGar=0,pend=0;list.forEach(a=>{totGar+=a.garantia||0;if(!a.cobrada)pend+=a.garantia||0;});
+  html+=`<div class="summary" style="margin-top:12px">
+    <div class="stat pos"><div class="k">Garantías (total)</div><div class="v">${money(totGar)}</div></div>
+    <div class="stat warn"><div class="k">Por cobrar</div><div class="v">${money(pend)}</div></div>
+    <div class="stat"><div class="k">Operaciones</div><div class="v">${list.length}</div></div>
+  </div><h2 class="section">Historial</h2><div class="cards">`;
+  list.forEach(a=>{const dep=state.deptos.find(d=>d.id===a.deptoId);
+    html+=`<div class="card">
+      <div class="card-top"><div><div class="card-name">${esc(dep?dep.nombre:a.deptoNombre||'Depto')}</div><div class="card-sub">${esc(a.inquilino||'—')} · ${a.fecha||''}${a.tipo?' · '+(a.tipo==='nuevo'?'depto nuevo':'renovación'):''}</div></div>
+      <span class="paid-pill ${a.cobrada?'pill-ok':'pill-debt'}">${a.cobrada?'Cobrada':'A cobrar'}</span></div>
+      <div class="liq-line"><span>Alquiler pactado</span><span>${money(a.alquiler)}</span></div>
+      <div class="liq-line"><span>Comisión de garantía</span><span class="pos">${money(a.garantia)}</span></div>
+      <div class="sheet-actions" style="margin-top:12px">
+        <button class="btn btn-ghost btn-sm" onclick="toggleCobrada('${a.id}')">${a.cobrada?'Marcar a cobrar':'Marcar cobrada'}</button>
+        <button class="btn btn-danger btn-sm" onclick="delAlquiler('${a.id}')">Borrar</button></div></div>`;});
+  html+='</div>';
+  el.innerHTML=html;
+}
+function setEstado(id,e){const dep=state.deptos.find(d=>d.id===id);dep.estado=e;save();render();toast(e==='alquilado'?'Marcado alquilado':e==='publicado'?'Marcado publicado':'Marcado vacío');}
+
+function renderDeptos(){
+  const el=document.getElementById('view-deptos');
+  let html=`<div class="add-fab"><button class="btn btn-primary" onclick="openDepto()">+ Agregar departamento</button></div>`;
+  if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus departamentos.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
+  const grupos={};state.deptos.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
+  Object.keys(grupos).forEach(oid=>{
+    html+=`<h2 class="section">${esc(ownerName(oid))}</h2><div class="cards">`;
+    grupos[oid].forEach(dep=>{
+      const oc=ocupacion(dep);
+      html+=`<div class="card">
+        <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(dep.inquilino||'Sin inquilino')}</div></div>
+        <span class="estado-badge ${oc.cls}">${oc.label}</span></div>
+        <div class="liq-line"><span>Alquiler</span><span>${money(dep.alquiler)} · com. ${dep.comisionPct||0}%</span></div>
+        <div class="liq-line"><span>Expensas / Servicios</span><span>${dep.expensas?money(dep.expensas):'—'} / ${dep.servicios?'Sí':'No'}</span></div>
+        <div class="liq-line"><span>Contrato</span><span>${dep.contratoInicio||'—'} → ${dep.contratoFin||'—'}</span></div>
+        <div class="liq-line"><span>Ajuste IPC · cobro</span><span>cada ${dep.ajusteMeses||3}m · ${dep.modalidad==='pasa'?'pasa por vos':'directo'}</span></div>
+        <div class="liq-line"><span>Garantía</span><span>${dep.garantiaEmpresa?esc(dep.garantiaEmpresa):'—'}</span></div>
+        <div class="sheet-actions" style="margin-top:12px">
+          <button class="btn btn-ghost btn-sm" onclick="openDepto('${dep.id}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="delDepto('${dep.id}')">Borrar</button></div></div>`;});
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+function empty(em,t,d){return `<div class="empty"><div class="em">${em}</div><p><strong>${t}</strong><br>${d}</p></div>`;}
+
+function openSheet(html){document.getElementById('sheet').innerHTML='<div class="grab"></div>'+html;document.getElementById('sheetBg').classList.add('open');}
+function closeSheet(){document.getElementById('sheetBg').classList.remove('open');}
+
+let flowSel='pasa';
+function openDepto(id){
+  const dep=id?state.deptos.find(d=>d.id===id):null;flowSel=dep?dep.modalidad:'pasa';
+  const est=dep?dep.estado||'alquilado':'alquilado';
+  const opts=state.duenos.map(o=>`<option value="${o.id}" ${dep&&dep.duenoId===o.id?'selected':''}>${esc(o.nombre)}</option>`).join('');
+  openSheet(`
+    <h3>${dep?'Editar departamento':'Nuevo departamento'}</h3>
+    <p class="hint">Cargá los datos. Después marcás los pagos mes a mes en “Mes”.</p>
+    <div class="field"><label>Nombre / dirección</label><input id="f_nombre" placeholder="Ej: Av. Corrientes 1234 4ºB" value="${dep?esc(dep.nombre):''}"></div>
+    <div class="field"><label>Dueño</label>
+      <select id="f_dueno">${opts}<option value="__new">➕ Nuevo dueño…</option></select>
+      <div id="newOwnerWrap" style="margin-top:10px;display:none">
+        <input id="f_ownerNew" placeholder="Nombre del dueño nuevo" style="margin-bottom:8px">
+        <input id="f_ownerTel" placeholder="WhatsApp del dueño (opcional)" inputmode="tel"></div></div>
+    <div class="row2">
+      <div class="field"><label>Inquilino actual</label><input id="f_inq" placeholder="Nombre (opcional)" value="${dep?esc(dep.inquilino||''):''}"></div>
+      <div class="field"><label>WhatsApp inquilino</label><input id="f_tel" placeholder="Ej: 11 5555 5555" inputmode="tel" value="${dep?esc(dep.telInquilino||''):''}"></div></div>
+    <div class="row2">
+      <div class="field"><label>Alquiler</label><input id="f_alq" type="number" inputmode="numeric" placeholder="0" value="${dep?dep.alquiler||'':''}"></div>
+      <div class="field"><label>Comisión (%)</label><input id="f_com" type="number" inputmode="decimal" placeholder="Ej: 8" value="${dep?dep.comisionPct||'':''}"></div></div>
+    <div class="row2">
+      <div class="field"><label>Expensas <span style="color:var(--muted);font-weight:400">(aprox.)</span></label><input id="f_exp" type="number" inputmode="numeric" placeholder="0 / vacío" value="${dep?dep.expensas||'':''}"></div>
+      <div class="field"><label>¿Cobra servicios?</label><select id="f_ser"><option value="no" ${(dep&&dep.servicios)?'':'selected'}>No</option><option value="si" ${(dep&&dep.servicios)?'selected':''}>Sí (agua, luz, gas)</option></select></div></div>
+    <div class="field"><label>¿Cómo cobra el alquiler?</label>
+      <div class="seg" id="f_flow">
+        <button type="button" class="${flowSel==='pasa'?'on':''}" onclick="pickFlow('pasa')">Pasa por vos</button>
+        <button type="button" class="${flowSel==='directo'?'on':''}" onclick="pickFlow('directo')">Directo al dueño</button></div>
+      <div class="sub">“Pasa por vos” = cobrás vos y le liquidás al dueño. “Directo” = el inquilino le paga al dueño.</div></div>
+    <div class="row2">
+      <div class="field"><label>Inicio de contrato</label><input id="f_ini" type="month" value="${dep?dep.contratoInicio||'':''}"></div>
+      <div class="field"><label>Fin de contrato</label><input id="f_fin" type="month" value="${dep?dep.contratoFin||'':''}"></div></div>
+    <div class="row2">
+      <div class="field"><label>Ajuste IPC</label>
+        <select id="f_aj">
+          <option value="3" ${!dep||dep.ajusteMeses===3?'selected':''}>Trimestral</option>
+          <option value="4" ${dep&&dep.ajusteMeses===4?'selected':''}>Cuatrimestral</option>
+          <option value="6" ${dep&&dep.ajusteMeses===6?'selected':''}>Semestral</option>
+          <option value="12" ${dep&&dep.ajusteMeses===12?'selected':''}>Anual</option></select></div>
+      <div class="field"><label>Estado</label>
+        <select id="f_est">
+          <option value="alquilado" ${est==='alquilado'?'selected':''}>Alquilado</option>
+          <option value="publicado" ${est==='publicado'?'selected':''}>Publicado</option>
+          <option value="vacio" ${est==='vacio'?'selected':''}>Vacío</option></select></div></div>
+    <div class="row2">
+      <div class="field"><label>Garantía de caución (empresa)</label><input id="f_garemp" placeholder="Ej: Finaer, Garantías X" value="${dep?esc(dep.garantiaEmpresa||''):''}"></div>
+      <div class="field"><label>WhatsApp de la garantía</label><input id="f_gartel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${dep?esc(dep.garantiaTel||''):''}"></div></div>
+    <div class="field"><label>Notas</label><input id="f_notas" placeholder="Ej: cochera incluida, mascota, depósito…" value="${dep?esc(dep.notas||''):''}"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveDepto('${id||''}')">Guardar</button></div>`);
+  document.getElementById('f_dueno').addEventListener('change',e=>{document.getElementById('newOwnerWrap').style.display=e.target.value==='__new'?'block':'none';});
+  if(state.duenos.length===0){document.getElementById('f_dueno').value='__new';document.getElementById('newOwnerWrap').style.display='block';}
+}
+function pickFlow(v){flowSel=v;document.querySelectorAll('#f_flow button').forEach((b,i)=>b.classList.toggle('on',(v==='pasa')?i===0:i===1));}
+function saveDepto(id){
+  const nombre=document.getElementById('f_nombre').value.trim();if(!nombre){toast('Poné un nombre o dirección');return;}
+  let duenoId=document.getElementById('f_dueno').value;
+  if(duenoId==='__new'){const nm=document.getElementById('f_ownerNew').value.trim();if(!nm){toast('Escribí el nombre del dueño');return;}duenoId=uid();state.duenos.push({id:duenoId,nombre:nm,telefono:document.getElementById('f_ownerTel').value.trim()});}
+  const num=v=>{const n=parseFloat(document.getElementById(v).value);return isNaN(n)?0:n;};
+  const data={nombre,duenoId,inquilino:document.getElementById('f_inq').value.trim(),telInquilino:document.getElementById('f_tel').value.trim(),alquiler:num('f_alq'),comisionPct:num('f_com'),expensas:num('f_exp'),servicios:document.getElementById('f_ser').value==='si',modalidad:flowSel,contratoInicio:document.getElementById('f_ini').value,contratoFin:document.getElementById('f_fin').value,ajusteMeses:parseInt(document.getElementById('f_aj').value),estado:document.getElementById('f_est').value,garantiaEmpresa:document.getElementById('f_garemp').value.trim(),garantiaTel:document.getElementById('f_gartel').value.trim(),notas:document.getElementById('f_notas').value.trim()};
+  if(id){const d=state.deptos.find(x=>x.id===id);Object.assign(d,data);}else{state.deptos.push({id:uid(),ajustes:[],...data});}
+  save();closeSheet();render();toast(id?'Depto actualizado':'Depto agregado');
+}
+function delDepto(id){if(!confirm('¿Borrar este departamento? Se pierden sus pagos registrados.'))return;state.deptos=state.deptos.filter(d=>d.id!==id);Object.values(state.pagos).forEach(m=>delete m[id]);save();render();toast('Depto borrado');}
+
+function openAjuste(id){const dep=state.deptos.find(d=>d.id===id);
+  openSheet(`
+    <h3>Ajuste por IPC</h3>
+    <p class="hint">${esc(dep.nombre)} · alquiler actual <strong>${money(dep.alquiler)}</strong></p>
+    <div class="field"><label>% de aumento del período</label>
+      <input id="aj_pct" type="number" inputmode="decimal" placeholder="Ej: 18.5" oninput="previewAjuste(${dep.alquiler})">
+      <div class="sub" id="aj_prev">Nuevo alquiler: —</div></div>
+    <div class="field"><label>…o poné el monto nuevo a mano</label><input id="aj_manual" type="number" inputmode="numeric" placeholder="Alquiler nuevo directo"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAjuste('${id}')">Aplicar ajuste</button></div>`);
+}
+function previewAjuste(base){const p=parseFloat(document.getElementById('aj_pct').value);document.getElementById('aj_prev').textContent=isNaN(p)?'Nuevo alquiler: —':'Nuevo alquiler: '+money(base*(1+p/100));}
+function saveAjuste(id){const dep=state.deptos.find(d=>d.id===id);const manual=parseFloat(document.getElementById('aj_manual').value);const pct=parseFloat(document.getElementById('aj_pct').value);let nuevo;
+  if(!isNaN(manual)&&manual>0)nuevo=Math.round(manual);else if(!isNaN(pct))nuevo=Math.round(dep.alquiler*(1+pct/100));else{toast('Cargá un % o un monto');return;}
+  dep.ajustes=dep.ajustes||[];dep.ajustes.push({ym,fecha:new Date().toISOString().slice(0,10),pct:isNaN(pct)?null:pct,anterior:dep.alquiler,nuevo});dep.alquiler=nuevo;save();closeSheet();render();toast('Alquiler ajustado a '+money(nuevo));}
+
+function openAlquiler(preId){const dp=preId?state.deptos.find(d=>d.id===preId):null;alqTipo=(dp&&dp.inquilino)?'renovacion':'nuevo';const opts=state.deptos.map(d=>`<option value="${d.id}" ${preId===d.id?'selected':''}>${esc(d.nombre)} — ${esc(ownerName(d.duenoId))}</option>`).join('');
+  openSheet(`
+    <h3>Registrar alquiler</h3>
+    <p class="hint">Registrá la operación y la comisión de garantía que cobrás por conseguir inquilino.</p>
+    <div class="field"><label>Tipo de operación</label>
+      <div class="seg" id="al_tipo">
+        <button type="button" class="${alqTipo==='nuevo'?'on':''}" onclick="pickTipo('nuevo')">Depto nuevo</button>
+        <button type="button" class="${alqTipo==='renovacion'?'on':''}" onclick="pickTipo('renovacion')">Renovación</button></div>
+      <div class="sub">“Depto nuevo” = un dueño te dio un depto que no administrabas. “Renovación” = un depto que ya tenías cambió de inquilino.</div></div>
+    <div class="field"><label>Departamento</label><select id="al_depto">${opts||'<option>Primero cargá deptos</option>'}</select></div>
+    <div class="field"><label>Inquilino nuevo</label><input id="al_inq" placeholder="Nombre"></div>
+    <div class="row2">
+      <div class="field"><label>Alquiler pactado</label><input id="al_alq" type="number" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>Comisión garantía</label><input id="al_gar" type="number" inputmode="numeric" placeholder="0"></div></div>
+    <div class="row2">
+      <div class="field"><label>Fecha de inicio</label><input id="al_fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Fin de contrato</label><input id="al_fin" type="month"></div></div>
+    <div class="field"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600"><input type="checkbox" id="al_update" checked style="width:20px;height:20px"> Actualizar el depto (inquilino, alquiler, contrato)</label></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAlquiler()">Guardar</button></div>`);
+}
+let alqTipo='nuevo';function pickTipo(v){alqTipo=v;document.querySelectorAll('#al_tipo button').forEach((b,i)=>b.classList.toggle('on',(v==='nuevo')?i===0:i===1));}
+function saveAlquiler(){const deptoId=document.getElementById('al_depto').value;const dep=state.deptos.find(d=>d.id===deptoId);if(!dep){toast('Cargá un depto primero');return;}
+  const num=v=>{const n=parseFloat(document.getElementById(v).value);return isNaN(n)?0:n;};
+  const inq=document.getElementById('al_inq').value.trim();const alq=num('al_alq'),gar=num('al_gar'),fecha=document.getElementById('al_fecha').value,fin=document.getElementById('al_fin').value;
+  state.alquileres.push({id:uid(),deptoId,deptoNombre:dep.nombre,inquilino:inq,alquiler:alq,garantia:gar,fecha,fin,tipo:alqTipo,cobrada:false});
+  if(document.getElementById('al_update').checked){if(inq)dep.inquilino=inq;if(alq)dep.alquiler=alq;if(fecha)dep.contratoInicio=fecha.slice(0,7);if(fin)dep.contratoFin=fin;dep.estado='alquilado';}
+  save();closeSheet();render();toast('Alquiler registrado');}
+function toggleCobrada(id){const a=state.alquileres.find(x=>x.id===id);a.cobrada=!a.cobrada;save();render();}
+function delAlquiler(id){if(!confirm('¿Borrar este registro?'))return;state.alquileres=state.alquileres.filter(x=>x.id!==id);save();render();}
+
+function openSettings(){
+  const cfg=state.config||{};const org=cfg.organizador||{};const cob=cfg.cobranza||{diasRecordar:5,diasReclamar:10};
+  const ownersHtml=state.duenos.length?state.duenos.map(o=>{const n=state.deptos.filter(d=>d.duenoId===o.id).length;return `<div class="owner-row"><div><div class="nm">${esc(o.nombre)}</div><div class="sm">${n} ${n===1?'depto':'deptos'}${o.telefono?' · 📱 '+esc(o.telefono):''}</div></div><div class="acts"><button class="btn-ghost" onclick="editOwner('${o.id}')">Editar</button>${n===0?`<button class="btn-danger" onclick="delOwner('${o.id}')">Borrar</button>`:''}</div></div>`;}).join(''):'<div class="sm" style="color:var(--muted);font-size:13px">Todavía no hay dueños.</div>';
+  openSheet(`
+    <h3>Ajustes</h3>
+    <p class="hint">Los datos viven en este dispositivo. Guardá una copia cada tanto.</p>
+    <div class="settings-item"><div><div class="t">Tu perfil</div><div class="d">${org.nombre?esc(org.nombre):'Sin nombre'}${org.tel?' · '+esc(org.tel):''}</div></div><button class="btn btn-ghost btn-sm" onclick="editOrganizador()">Editar</button></div>
+    <div class="settings-item"><div><div class="t">Ver tutorial</div><div class="d">Repasá cómo funciona el panel</div></div><button class="btn btn-ghost btn-sm" onclick="startTour()">Ver</button></div>
+    <div class="settings-item"><div><div class="t">Cobranzas</div><div class="d">Recordar a los ${cob.diasRecordar} · reclamar a garantía a los ${cob.diasReclamar} días hábiles (desde el 1º)</div></div><button class="btn btn-ghost btn-sm" onclick="editCobranza()">Editar</button></div>
+    <div class="settings-item"><div><div class="t">Descargar copia</div><div class="d">Archivo con todos tus datos</div></div><button class="btn btn-ghost btn-sm" onclick="exportData()">Descargar</button></div>
+    <div class="settings-item"><div><div class="t">Restaurar copia</div><div class="d">Cargar un archivo guardado</div></div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">Elegir</button></div>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
+    <h2 class="section" style="margin-top:20px">Dueños</h2>
+    <div class="card" style="box-shadow:none;border:1px solid var(--line)">${ownersHtml}</div>
+    <div class="settings-item" style="margin-top:14px"><div><div class="t">Cerrar sesión</div><div class="d">Salís de la cuenta en este dispositivo</div></div><button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button></div>
+    <div class="settings-item" style="margin-top:14px"><div><div class="t" style="color:var(--red)">Borrar todo</div><div class="d">Empezar de cero</div></div><button class="btn btn-danger btn-sm" onclick="wipe()">Borrar</button></div>
+    <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:16px">${state.deptos.length} deptos · ${state.duenos.length} dueños · ${state.alquileres.length} alquileres</div>`);
+}
+function editOwner(id){const o=owner(id);
+  openSheet(`
+    <h3>Editar dueño</h3>
+    <div class="field"><label>Nombre</label><input id="o_nombre" value="${esc(o.nombre)}"></div>
+    <div class="field"><label>WhatsApp (opcional)</label><input id="o_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${esc(o.telefono||'')}"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" onclick="openSettings()">Volver</button>
+      <button class="btn btn-primary" onclick="saveOwner('${id}')">Guardar</button></div>`);
+}
+function saveOwner(id){const o=owner(id);const nm=document.getElementById('o_nombre').value.trim();if(!nm){toast('Poné un nombre');return;}o.nombre=nm;o.telefono=document.getElementById('o_tel').value.trim();save();openSettings();render();toast('Dueño actualizado');}
+function delOwner(id){if(!confirm('¿Borrar este dueño?'))return;state.duenos=state.duenos.filter(d=>d.id!==id);save();openSettings();render();toast('Dueño borrado');}
+function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='alquileres-'+ymNow()+'.json';a.click();toast('Copia descargada');}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.duenos)throw 0;if(!d.config)d.config={onboarded:true,organizador:{nombre:'',tel:''},pin:''};state=d;save();closeSheet();render();toast('Datos restaurados');}catch(x){toast('Archivo inválido');}};r.readAsText(f);}
+function wipe(){if(!confirm('¿Borrar TODOS los datos? No se puede deshacer.'))return;state={duenos:[],deptos:[],pagos:{},alquileres:[],config:state.config};save();closeSheet();render();toast('Todo borrado');}
+
+let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
+
+/* ===== Organizadora, bienvenida y tutorial ===== */
+function firmaOrg(){const o=state.config&&state.config.organizador;return o&&o.nombre?'\n\n— '+o.nombre:'';}
+function cmpYm(a,b){return a<b?-1:a>b?1:0;}
+const PILL={ok:['Al día','pill-ok'],proximo:['Por pagar','pill-neutral'],pendiente:['Pendiente','pill-warn'],recordar:['Atrasado','pill-warn'],critico:['Reclamar','pill-debt']};
+function habilesTranscurridos(){const now=new Date();const y=now.getFullYear(),m=now.getMonth();let c=0;for(let d=1;d<=now.getDate();d++){const wd=new Date(y,m,d).getDay();if(wd!==0&&wd!==6)c++;}return c;}
+function cobranza(dep){
+  const p=pagos(dep.id);
+  if(estaAlDia(dep))return{nivel:'ok'};
+  if(p.alq)return{nivel:'pendiente'};
+  const cfg=(state.config&&state.config.cobranza)||{diasRecordar:5,diasReclamar:10};
+  const rel=cmpYm(ym,ymNow());
+  if(rel>0)return{nivel:'proximo'};
+  if(rel<0)return{nivel:'critico',dias:null};
+  const h=habilesTranscurridos();
+  if(h>=(cfg.diasReclamar||10))return{nivel:'critico',dias:h};
+  if(h>=(cfg.diasRecordar||5))return{nivel:'recordar',dias:h};
+  return{nivel:'proximo',dias:h};
+}
+function itemsAdeuda(dep){const p=pagos(dep.id);const f=[];if(!p.alq)f.push('alquiler');if(dep.expensas&&!p.exp)f.push('expensas');if(dep.servicios&&!p.ser)f.push('servicios');if(f.length<=1)return f[0]||'alquiler';return f.slice(0,-1).join(', ')+' y '+f[f.length-1];}
+function reminderText(dep,nivel){
+  const items=itemsAdeuda(dep);const saludo='Hola'+(dep.inquilino?' '+dep.inquilino:'')+'!';const mes=ymLabel(ym);
+  const cuerpo=(nivel==='critico')
+    ? ' El pago de '+items+' de '+mes+' del depto '+dep.nombre+' está muy atrasado. Te pido que lo regularices a la brevedad para no tener que iniciar el reclamo a la garantía.'
+    : ' Te recuerdo que tenés pendiente el pago de '+items+' de '+mes+' del depto '+dep.nombre+'. ¡Gracias!';
+  return saludo+cuerpo+firmaOrg();
+}
+function garantiaText(dep){
+  const items=itemsAdeuda(dep);const emp=dep.garantiaEmpresa||'';
+  return 'Hola'+(emp?' '+emp:'')+'! Les informo un atraso de pago en un depto con garantía de caución. Depto: '+dep.nombre+'. Inquilino: '+(dep.inquilino||'—')+'. Adeuda: '+items+' de '+ymLabel(ym)+'. Por favor avancen con el procedimiento correspondiente. Gracias.'+firmaOrg();
+}
+function hideGate(){const g=document.getElementById('gate');g.classList.remove('show');g.innerHTML='';}
+
+function editOrganizador(){const cfg=state.config;const o=cfg.organizador||{};
+  openSheet(`
+    <h3>Tu perfil</h3>
+    <p class="hint">Con esto se firman los recordatorios que le mandás por WhatsApp a los inquilinos.</p>
+    <div class="field"><label>Tu nombre</label><input id="og_nombre" placeholder="Ej: Marta" value="${esc(o.nombre||'')}"></div>
+    <div class="field"><label>Tu WhatsApp</label><input id="og_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${esc(o.tel||'')}"></div>
+    <div class="sheet-actions"><button class="btn btn-ghost" onclick="openSettings()">Volver</button><button class="btn btn-primary" onclick="saveOrganizador()">Guardar</button></div>`);
+}
+function saveOrganizador(){const cfg=state.config;cfg.organizador={nombre:document.getElementById('og_nombre').value.trim(),tel:document.getElementById('og_tel').value.trim()};save();openSettings();render();toast('Perfil guardado');}
+function editCobranza(){const c=(state.config&&state.config.cobranza)||{diasRecordar:5,diasReclamar:10};
+  openSheet(`
+    <h3>Cobranzas</h3>
+    <p class="hint">Se cuentan días hábiles (lunes a viernes) desde el 1º de cada mes. Cuando pasan los días indicados y el alquiler sigue impago, el panel te avisa.</p>
+    <div class="field"><label>Días hábiles para recordarle al inquilino</label><input id="cb_rec" type="number" inputmode="numeric" value="${c.diasRecordar}"></div>
+    <div class="field"><label>Días hábiles para reclamar a la garantía</label><input id="cb_rel" type="number" inputmode="numeric" value="${c.diasReclamar}"></div>
+    <div class="sheet-actions"><button class="btn btn-ghost" onclick="openSettings()">Volver</button><button class="btn btn-primary" onclick="saveCobranza()">Guardar</button></div>`);
+}
+function saveCobranza(){const rec=parseInt(document.getElementById('cb_rec').value),rel=parseInt(document.getElementById('cb_rel').value);state.config.cobranza={diasRecordar:isNaN(rec)?5:rec,diasReclamar:isNaN(rel)?10:rel};save();openSettings();render();toast('Cobranzas actualizadas');}
+
+let obStep=0, obTourOnly=false;
+function obSteps(){
+  const s=[{type:'org'},
+    {emoji:'📅',title:'Mes',text:'Tu tablero del mes. Con un toque marcás quién pagó <b>alquiler</b>, <b>expensas</b> y <b>servicios</b>. Verde = pagó, rojo = debe. Arriba ves cuánto cobraste, cuánto liquidar y tu comisión.'},
+    {emoji:'👥',title:'Dueños',text:'Te calcula solo cuánto le tenés que <b>liquidar a cada dueño</b> y cuánto es <b>tu comisión</b>. Si un dueño te debe a vos, también te lo marca.'},
+    {emoji:'🔑',title:'Nuevos',text:'Te <b>avisa los contratos por vencer</b> para publicar a tiempo y no perder un mes sin alquilar. Y registrás los <b>alquileres nuevos</b> con su comisión de garantía.'},
+    {emoji:'🏢',title:'Deptos',text:'Acá <b>cargás cada departamento</b>: dueño, alquiler, comisión, contrato y cómo se cobra. <b>Empezá por esta pestaña.</b>'}];
+  return s;
+}
+function openOnboarding(tourOnly){obTourOnly=tourOnly;obStep=tourOnly?1:0;renderOnboarding();}
+function renderOnboarding(){
+  const g=document.getElementById('gate');g.classList.add('show');
+  const org=(state.config&&state.config.organizador)||{nombre:'',tel:''};
+  const steps=obSteps();const total=steps.length;const s=steps[obStep];
+  let body;
+  if(s.type==='org'){
+    body=`<div class="gate-emoji">🏠</div><h2>¡Hola! Bienvenida</h2>
+      <p class="gate-p">Soy tu panel de alquileres. En 30 segundos te muestro cómo funciona.<br>Primero, ¿cómo te presentás?</p>
+      <div class="field" style="text-align:left;margin-bottom:12px"><label>Tu nombre</label><input id="ob_nombre" placeholder="Ej: Marta" value="${esc(org.nombre)}"></div>
+      <div class="field" style="text-align:left"><label>Tu WhatsApp <span style="color:var(--muted);font-weight:400">(para firmar los recordatorios)</span></label><input id="ob_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${esc(org.tel)}"></div>`;
+  }else{
+    body=`<div class="gate-emoji">${s.emoji}</div><h2>${s.title}</h2><p class="gate-p">${s.text}</p>`;
+  }
+  const dots=steps.map((_,i)=>`<span class="dot ${i===obStep?'on':''}"></span>`).join('');
+  const isLast=obStep===total-1;
+  g.innerHTML=`<div class="gate-card">${body}
+    <div class="ob-dots">${dots}</div>
+    <div class="ob-nav">
+      ${obStep>(obTourOnly?1:0)?`<button class="btn btn-ghost" onclick="obBack()">Atrás</button>`:''}
+      <button class="btn btn-primary" onclick="obNext()">${isLast?(obTourOnly?'Cerrar':'Empezar'):'Siguiente'}</button>
+    </div></div>`;
+}
+function captureOb(){const n=document.getElementById('ob_nombre');if(n)state.config.organizador.nombre=n.value.trim();const t=document.getElementById('ob_tel');if(t)state.config.organizador.tel=t.value.trim();}
+function obBack(){captureOb();if(obStep>0){obStep--;renderOnboarding();}}
+function obNext(){captureOb();const total=obSteps().length;if(obStep<total-1){obStep++;renderOnboarding();}else{finishOnboarding();}}
+function finishOnboarding(){state.config.onboarded=true;save();hideGate();if(!obTourOnly){go('deptos');setTimeout(()=>toast('¡Listo! Empezá cargando tu primer depto'),300);}else{toast('Tutorial terminado');}}
+function startTour(){closeSheet();openOnboarding(true);}
+
+function boot(){render();if(!state.config.onboarded){openOnboarding(false);}}
+
+/* ============ Login + sincronización con Supabase ============ */
+async function authBoot(){
+  const cfgOk = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length>20;
+  if(!cfgOk){document.getElementById('gate').classList.add('show');document.getElementById('gate').innerHTML=`<div class="gate-card"><div class="gate-emoji">⚙️</div><h2>Falta configurar Supabase</h2><p class="gate-p">Abrí <b>index.html</b> con un editor de texto y pegá tu <b>Project URL</b> y tu <b>anon key</b> donde dice “PEGAR AQUÍ”. Seguí la guía, Parte 1.</p></div>`;return;}
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){sbUser=session.user;await afterLogin();}
+  else{showLogin(false);}
+  sb.auth.onAuthStateChange((event,s)=>{if(event==='SIGNED_OUT')location.reload();});
+}
+async function afterLogin(){
+  document.getElementById('gate').classList.remove('show');
+  try{
+    const {data,error}=await sb.from('panel_data').select('data').eq('user_id',sbUser.id).maybeSingle();
+    if(error)throw error;
+    if(data&&data.data&&data.data.duenos){state=data.data;if(!state.config)state.config={onboarded:true,organizador:{nombre:'',tel:''},pin:'',cobranza:{diasRecordar:5,diasReclamar:10}};localStorage.setItem(KEY,JSON.stringify(state));}
+  }catch(e){toast('No se pudo leer la nube, uso datos locales');}
+  remoteReady=true;
+  boot();
+  pushRemote();
+}
+function showLogin(isSignup){
+  const g=document.getElementById('gate');g.classList.add('show');
+  g.innerHTML=`<div class="gate-card">
+    <div class="gate-emoji">🏠</div>
+    <h2>${isSignup?'Crear cuenta':'Ingresar'}</h2>
+    <p class="gate-p">${isSignup?'Creá el usuario una sola vez.':'Entrá con tu email y contraseña.'}</p>
+    <div class="field" style="text-align:left"><label>Email</label><input id="lg_email" type="email" inputmode="email" placeholder="tucorreo@gmail.com"></div>
+    <div class="field" style="text-align:left"><label>Contraseña</label><input id="lg_pass" type="password" placeholder="••••••"></div>
+    <div class="gate-err" id="lg_err"></div>
+    <button class="btn btn-primary" onclick="doAuth(${isSignup})">${isSignup?'Crear cuenta':'Entrar'}</button>
+    <button class="gate-link" onclick="showLogin(${!isSignup})">${isSignup?'Ya tengo cuenta, ingresar':'Crear una cuenta nueva'}</button>
+  </div>`;
+}
+async function doAuth(isSignup){
+  const email=document.getElementById('lg_email').value.trim();
+  const pass=document.getElementById('lg_pass').value;
+  const err=document.getElementById('lg_err');
+  if(!email||!pass){err.textContent='Completá email y contraseña';return;}
+  err.textContent='Un momento…';
+  try{
+    let res;
+    if(isSignup)res=await sb.auth.signUp({email,password:pass});
+    else res=await sb.auth.signInWithPassword({email,password:pass});
+    if(res.error)throw res.error;
+    if(!res.data.session){err.textContent='Cuenta creada. Ahora tocá “Ya tengo cuenta, ingresar”.';return;}
+    sbUser=res.data.session.user;await afterLogin();
+  }catch(e){err.textContent=(e&&e.message)?e.message:'No se pudo, revisá los datos';}
+}
+async function logout(){await sb.auth.signOut();}
+
+authBoot();
+</script>
+</body>
+</html>
