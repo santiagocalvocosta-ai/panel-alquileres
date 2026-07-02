@@ -260,14 +260,14 @@ function comision(dep){if(dep.modalidad==='dueno')return 0;return (dep.alquiler|
 function pagos(deptoId){const m=state.pagos[ym]||{};return m[deptoId]||{alq:false,exp:false,ser:false};}
 function setPago(deptoId,k){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};state.pagos[ym][deptoId][k]=!state.pagos[ym][deptoId][k];save();render();}
 function estaAlDia(dep){const p=pagos(dep.id);return p.alq&&(!dep.expensas||p.exp)&&(!dep.servicios||p.ser);}
-function ajustePendiente(dep){if(!dep.contratoInicio||!dep.ajusteMeses)return false;const els=monthsBetween(dep.contratoInicio,ym);if(els<=0||els%dep.ajusteMeses!==0)return false;return !(dep.ajustes||[]).some(a=>a.ym===ym);}
+function ajustePendiente(dep){if(!dep.contratoInicio||!dep.ajusteMeses)return false;const els=monthsBetween(ymOf(dep.contratoInicio),ym);if(els<=0||els%dep.ajusteMeses!==0)return false;return !(dep.ajustes||[]).some(a=>a.ym===ym);}
 
 /* Estado de ocupación / vencimiento (relativo al mes REAL) */
 function ocupacion(dep){
   const e=dep.estado||'alquilado';
   if(e==='vacio')return{code:'vacio',label:'Vacío — publicá ya',cls:'est-bad',urg:3};
   if(e==='publicado')return{code:'publicado',label:'Publicado, buscando inquilino',cls:'est-warn',urg:2};
-  const ml=dep.contratoFin?monthsBetween(ymNow(),dep.contratoFin):null;
+  const ml=dep.contratoFin?monthsBetween(ymNow(),ymOf(dep.contratoFin)):null;
   if(ml===null)return{code:'ok',label:'Alquilado',cls:'est-ok',urg:0,ml:null};
   if(ml<0)return{code:'vencido',label:'Contrato vencido',cls:'est-bad',urg:3,ml};
   if(ml===0)return{code:'vence',label:'Vence este mes',cls:'est-bad',urg:2,ml};
@@ -314,33 +314,39 @@ function renderMes(){
     if(mesOwner!=='all'&&dep.duenoId!==mesOwner)return false;
     if(mesQuery){const q=mesQuery.toLowerCase();if(!((dep.nombre||'').toLowerCase().includes(q)||(dep.inquilino||'').toLowerCase().includes(q)))return false;}
     return true;
-  }).sort((a,b)=>{const sa=estaAlDia(a)?1:0,sb=estaAlDia(b)?1:0;return sa-sb||(a.nombre||'').localeCompare(b.nombre||'');});
-
+  });
   if(list.length===0){html+=empty('&#128269;','Sin resultados.','Probá con otro nombre o quitá el filtro.');el.innerHTML=html;return;}
-  html+='<div class="cards">';
-  list.forEach(dep=>{
+  const cardHtml=dep=>{
     const p=pagos(dep.id);const cb=cobranza(dep);const[ptxt,pcls]=PILL[cb.nivel]||PILL.pendiente;
     const showWa=['recordar','critico','pendiente'].includes(cb.nivel)&&dep.telInquilino;
     const wa=showWa?`<a class="contact" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,cb.nivel))}" target="_blank" rel="noopener">${cb.nivel==='critico'?'⚠️ Reclamar al inquilino':'💬 Recordar pago'}</a>`:'';
     const waGar=(cb.nivel==='critico'&&dep.garantiaTel)?`<a class="contact" style="color:var(--red);background:var(--red-soft)" href="https://wa.me/${digits(dep.garantiaTel)}?text=${encodeURIComponent(garantiaText(dep))}" target="_blank" rel="noopener">🛡️ Avisar a garantía</a>`:'';
     const garNote=(cb.nivel==='critico')?`<div class="gar-note">🔴 Corresponde reclamar a la garantía${cb.dias?' · '+cb.dias+' días hábiles del mes':''}${dep.garantiaEmpresa?' · '+esc(dep.garantiaEmpresa):''}.</div>`:'';
-    html+=`<div class="card">
+    return `<div class="card">
       <div class="card-top">
         <div><div class="card-name">${esc(dep.nombre)}</div>
-        <div class="card-sub">${esc(dep.inquilino||'Sin inquilino')} · <span class="owner-tag">${esc(ownerName(dep.duenoId))}</span></div></div>
+        <div class="card-sub">${esc(dep.inquilino||'Sin inquilino')}</div></div>
         <span class="paid-pill ${pcls}">${ptxt}</span>
       </div>
       <div class="chips">
         ${chip(dep,'alq','Alquiler',dep.alquiler,p.alq,false,false)}
-        ${chip(dep,'exp','Expensas',dep.expensas,p.exp,!dep.expensas,false)}
+        ${chip(dep,'exp','Expensas',null,p.exp,!dep.expensas,true)}
         ${chip(dep,'ser','Servicios',null,p.ser,!dep.servicios,true)}
       </div>
       ${garNote}
       ${(wa||waGar)?`<div class="wa-row">${wa}${waGar}</div>`:''}
       ${ajustePendiente(dep)?`<div class="adj-banner"><span class="txt">&#9201; Toca ajuste por IPC</span><button onclick="openAjuste('${dep.id}')">Aplicar</button></div>`:''}
     </div>`;
+  };
+  // Agrupado por dueño
+  const grupos={};list.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
+  const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
+  oidsOrdenados.forEach(oid=>{
+    const deps=grupos[oid].sort((a,b)=>{const sa=estaAlDia(a)?1:0,sb=estaAlDia(b)?1:0;return sa-sb||(a.nombre||'').localeCompare(b.nombre||'');});
+    html+=`<h2 class="section">${esc(ownerName(oid))} · ${deps.length} ${deps.length===1?'depto':'deptos'}</h2><div class="cards">`;
+    deps.forEach(dep=>{html+=cardHtml(dep);});
+    html+='</div>';
   });
-  html+='</div>';
   el.innerHTML=html;
 }
 function onMesSearch(v){mesQuery=v;renderMes();const i=document.getElementById('mesSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
@@ -436,6 +442,8 @@ function renderDeptos(){
         <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(dep.inquilino||'Sin inquilino')}</div></div>
         <span class="estado-badge ${oc.cls}">${oc.label}</span></div>
         <div class="liq-line"><span>Alquiler</span><span>${money(dep.alquiler)}${dep.modalidad==='dueno'?'':' · com. '+(dep.comisionPct||0)+'%'}</span></div>
+        ${(dep.alquilerInicial!=null&&dep.alquilerInicial!==dep.alquiler)?`<div class="liq-line"><span>Pactado inicial</span><span style="color:var(--muted)">${money(dep.alquilerInicial)} · ${(dep.ajustes||[]).length} ajustes</span></div>`:''}
+        ${dep.comisionPrevia?`<div class="liq-line"><span>Comisión ya ganada</span><span class="pos">${money(dep.comisionPrevia)}</span></div>`:''}
         <div class="liq-line"><span>Administración</span><span>${dep.modalidad==='dueno'?'directo el dueño':'lo administrás vos'}</span></div>
         <div class="liq-line"><span>Contrato</span><span>${dep.contratoInicio||'—'} → ${dep.contratoFin||'—'}</span></div>
         <div class="liq-line"><span>Ajuste IPC</span><span>${(dep.ajusteMeses&&dep.ajusteMeses>0)?('cada '+dep.ajusteMeses+' meses'):'sin ajuste'}</span></div>
@@ -475,8 +483,8 @@ function openDepto(id){
       <div class="field"><label>Calle</label><input id="f_calle" placeholder="Ej: Av. Corrientes" value="${dep?esc(dep.calle||''):''}"></div>
       <div class="field"><label>Número</label><input id="f_num" inputmode="numeric" placeholder="Ej: 1234" value="${dep?esc(dep.numero||''):''}"></div></div>
     <div class="row2">
-      <div class="field"><label>Piso</label><input id="f_piso" placeholder="Ej: 4 / PB" value="${dep?esc(dep.piso||''):''}"></div>
-      <div class="field"><label>Depto</label><input id="f_dep" placeholder="Ej: B" value="${dep?esc(dep.depto||''):''}"></div></div>
+      <div class="field"><label>Piso <span style="color:var(--muted);font-weight:400">— opcional</span></label><input id="f_piso" placeholder="Ej: 4 / PB" value="${dep?esc(dep.piso||''):''}"></div>
+      <div class="field"><label>Depto <span style="color:var(--muted);font-weight:400">— opcional</span></label><input id="f_dep" placeholder="Ej: B" value="${dep?esc(dep.depto||''):''}"></div></div>
 
     <div class="form-sec">Detalle del dueño</div>
     <input type="hidden" id="f_duenoId" value="${dep?esc(dep.duenoId||''):''}">
@@ -504,15 +512,18 @@ function openDepto(id){
 
     <div class="form-sec">Detalle del contrato</div>
     <div class="row2">
-      <div class="field"><label>Fecha de inicio</label><input id="f_ini" type="month" value="${dep?dep.contratoInicio||'':''}"></div>
-      <div class="field"><label>Fecha de fin</label><input id="f_fin" type="month" value="${dep?dep.contratoFin||'':''}"></div></div>
-    <div class="field"><label>Alquiler actual</label><input id="f_alq" type="number" inputmode="numeric" placeholder="0" value="${dep?dep.alquiler||'':''}"></div>
+      <div class="field"><label>Fecha de inicio</label><input id="f_ini" type="date" value="${dep?dep.contratoInicio||'':''}"></div>
+      <div class="field"><label>Fecha de fin</label><input id="f_fin" type="date" value="${dep?dep.contratoFin||'':''}"></div></div>
+    <div class="field"><label>Alquiler pactado <span style="color:var(--muted);font-weight:400">(el del inicio del contrato)</span></label><input id="f_alq" type="number" inputmode="numeric" placeholder="0" value="${dep?(dep.alquilerInicial!=null?dep.alquilerInicial:(dep.alquiler||'')):''}"><div class="sub">Con los ajustes por IPC del medio, la app calcula sola el valor actual.</div></div>
     <div class="field"><label>Administración</label>
       <div class="seg" id="f_flow">
         <button type="button" class="${flowSel==='vos'?'on':''}" onclick="pickFlow('vos')">Lo administrás vos</button>
         <button type="button" class="${flowSel==='dueno'?'on':''}" onclick="pickFlow('dueno')">Directo el dueño</button></div>
       <div class="sub">“Directo el dueño” = lo maneja el dueño; queda solo en tu radar para cuando se libere.</div></div>
     <div class="field" id="comWrap" style="display:${flowSel==='dueno'?'none':'block'}"><label>Comisión (%)</label><input id="f_com" type="number" inputmode="decimal" placeholder="Ej: 8" value="${dep?dep.comisionPct||'':''}"></div>
+    <div class="row2">
+      <div class="field"><label>¿Tiene expensas?</label><select id="f_exp"><option value="no" ${(dep&&dep.expensas)?'':'selected'}>No</option><option value="si" ${(dep&&dep.expensas)?'selected':''}>Sí</option></select></div>
+      <div class="field"><label>¿Cobra servicios?</label><select id="f_ser"><option value="no" ${(dep&&dep.servicios)?'':'selected'}>No</option><option value="si" ${(dep&&dep.servicios)?'selected':''}>Sí</option></select></div></div>
     <div class="field"><label>Ajuste por IPC</label>
       <div class="seg" id="f_ipc">
         <button type="button" class="${ipcSel==='si'?'on':''}" onclick="pickIPC('si')">Sí</button>
@@ -555,18 +566,18 @@ function ownerSuggest(){
 function saveDepto(id){
   const val=x=>document.getElementById(x).value.trim();
   const calle=val('f_calle'),numero=val('f_num'),piso=val('f_piso'),depto=val('f_dep');
-  if(!calle||!numero||!piso||!depto){toast('Completá calle, número, piso y depto');return;}
+  if(!calle||!numero){toast('Completá calle y número');return;}
   const oap=val('f_oap'),onom=val('f_onom'),odni=val('f_odni'),otel=val('f_otel');
   if(!oap||!onom||!odni||!otel){toast('Completá los datos del dueño');return;}
   let duenoId=val('f_duenoId');
   const oData={apellido:oap,nombre:onom,dni:odni,telefono:otel};
   if(duenoId){const d=owner(duenoId);if(d)Object.assign(d,oData);else{duenoId=uid();state.duenos.push({id:duenoId,...oData});}}
   else{duenoId=uid();state.duenos.push({id:duenoId,...oData});}
-  const nombre=calle+' '+numero+', Piso '+piso+' Depto '+depto;
+  const nombre=calle+' '+numero+(piso?', Piso '+piso:'')+(depto?' Depto '+depto:'');
   const estado=estSel;
   const num=v=>{const n=parseFloat(document.getElementById(v).value);return isNaN(n)?0:n;};
   if(!val('f_ini')||!val('f_fin')){toast('Cargá inicio y fin de contrato');return;}
-  if(num('f_alq')<=0){toast('Cargá el alquiler');return;}
+  if(num('f_alq')<=0){toast('Cargá el alquiler pactado');return;}
   let inq={inqApellido:'',inqNombre:'',inqDni:'',telInquilino:'',inquilino:'',garantiaEmpresa:'',garantiaTel:''};
   if(estado==='alquilado'){
     const iap=val('f_iap'),inom=val('f_inom'),idni=val('f_idni'),itel=val('f_tel');
@@ -576,44 +587,98 @@ function saveDepto(id){
     inq={inqApellido:iap,inqNombre:inom,inqDni:idni,telInquilino:itel,inquilino:iap+', '+inom,garantiaEmpresa:garemp,garantiaTel:gartel};
   }
   const modalidad=flowSel;
+  const alqInicial=num('f_alq');
+  const ajusteMeses=ipcSel==='si'?parseInt(document.getElementById('f_aj').value):0;
   const data={nombre,calle,numero,piso,depto,duenoId,estado,...inq,
-    alquiler:num('f_alq'),modalidad,comisionPct:modalidad==='dueno'?0:num('f_com'),
+    alquilerInicial:alqInicial,alquiler:alqInicial,modalidad,comisionPct:modalidad==='dueno'?0:num('f_com'),
     contratoInicio:val('f_ini'),contratoFin:val('f_fin'),
-    ajusteIPC:ipcSel==='si',ajusteMeses:ipcSel==='si'?parseInt(document.getElementById('f_aj').value):0};
-  if(id){const d=state.deptos.find(x=>x.id===id);Object.assign(d,data);}else{state.deptos.push({id:uid(),ajustes:[],...data});}
-  save();closeSheet();render();toast(id?'Depto actualizado':'Depto agregado');
+    expensas:document.getElementById('f_exp').value==='si',servicios:document.getElementById('f_ser').value==='si',
+    ajusteIPC:ipcSel==='si',ajusteMeses};
+  let target;
+  if(id){target=state.deptos.find(x=>x.id===id);Object.assign(target,data,{ajustes:[]});}
+  else{target={id:uid(),ajustes:[],...data};state.deptos.push(target);}
+  // Reconstruye alquiler actual desde el pactado + ajustes pasados por IPC
+  const rec=reconstruir(target,ipcMap());
+  target.alquiler=rec.cur;target.ajustes=rec.ajustes;
+  // Asume pago/liquidado los meses previos
+  marcarPrevios(target);
+  const comPrev=comisionPrevia(target);target.comisionPrevia=comPrev;
+  save();closeSheet();render();
+  if(!id&&(rec.ajustes.length||comPrev)){
+    toast('Reconstruido: '+money(alqInicial)+' → '+money(rec.cur));
+  }else{toast(id?'Depto actualizado':'Depto agregado');}
 }
 function delDepto(id){if(!confirm('¿Borrar este departamento? Se pierden sus pagos registrados.'))return;state.deptos=state.deptos.filter(d=>d.id!==id);Object.values(state.pagos).forEach(m=>delete m[id]);save();render();toast('Depto borrado');}
 
+const IPC_SEED={'2023-01':6.0,'2023-02':6.6,'2023-03':7.7,'2023-04':8.4,'2023-05':7.8,'2023-06':6.0,'2023-07':6.3,'2023-08':12.4,'2023-09':12.7,'2023-10':8.3,'2023-11':12.8,'2023-12':25.5,'2024-01':20.6,'2024-02':13.2,'2024-03':11.0,'2024-04':8.8,'2024-05':4.2,'2024-06':4.6,'2024-07':4.0,'2024-08':4.2,'2024-09':3.5,'2024-10':2.7,'2024-11':2.4,'2024-12':2.7};
 let IPC_CACHE=null;
 async function fetchIPC(){
   if(IPC_CACHE)return IPC_CACHE;
-  // Serie oficial INDEC: IPC Nacional Nivel General (índice, base dic-2016=100)
-  const r=await fetch('https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26&format=json&last=60');
-  if(!r.ok)throw new Error('http');
-  const j=await r.json();const rows=(j&&j.data)||[];
-  // Guardo el nivel del índice por mes; el % mensual se calcula contra el mes anterior
-  const idx={};rows.forEach(row=>{if(row&&row[0]!=null&&row[1]!=null)idx[String(row[0]).slice(0,7)]=Number(row[1]);});
-  // % mensual = (indice[m]/indice[m-1]-1)*100  (variación oficial INDEC del mes)
-  const map={};Object.keys(idx).forEach(m=>{const prev=shiftYm(m,-1);if(idx[prev]!=null)map[m]=(idx[m]/idx[prev]-1)*100;});
-  IPC_CACHE=map;
-  try{state.ipc=Object.assign({},state.ipc,map);localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
-  return map;
+  const base=Object.assign({},IPC_SEED,state.ipc||{});
+  try{
+    const r=await fetch('https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26&format=json&start_date=2022-12&limit=1000');
+    if(r.ok){const j=await r.json();const rows=(j&&j.data)||[];const idx={};rows.forEach(row=>{if(row&&row[0]!=null&&row[1]!=null)idx[String(row[0]).slice(0,7)]=Number(row[1]);});Object.keys(idx).forEach(m=>{const prev=shiftYm(m,-1);if(idx[prev]!=null)base[m]=(idx[m]/idx[prev]-1)*100;});}
+  }catch(e){}
+  IPC_CACHE=base;try{state.ipc=base;localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
+  return base;
 }
-function ipcMap(){return IPC_CACHE||state.ipc||{};}
+function ipcMap(){return IPC_CACHE||Object.assign({},IPC_SEED,state.ipc||{});}
+function ymOf(d){return (d||'').slice(0,7);}
 function mesesPrevios(ymBase,n){const out=[];let v=ymBase;for(let i=0;i<n;i++){v=shiftYm(v,-1);out.unshift(v);}return out;}
+function sumaIPC(ymAdj,n,map){const meses=mesesPrevios(ymAdj,n);let pct=0;const vals=[];for(const m of meses){if(map[m]==null||isNaN(map[m]))return null;pct+=map[m];vals.push({ym:m,val:map[m]});}return{pct,vals};}
 function calcAjusteIPC(dep,map){
-  const n=dep.ajusteMeses||3;const meses=mesesPrevios(ym,n);
-  const vals=[];const faltan=[];
-  meses.forEach(m=>{if(map[m]!=null&&!isNaN(map[m]))vals.push({ym:m,val:map[m]});else faltan.push(m);});
-  if(faltan.length)return{ok:false,faltan};
-  // SUMA simple de los % mensuales (no compuesto): 3+3+3 = 9
-  let pct=0;vals.forEach(x=>pct+=x.val);
-  const nuevo=Math.round((dep.alquiler||0)*(1+pct/100));
-  return{ok:true,pct,nuevo,anterior:dep.alquiler||0,nominal:nuevo-(dep.alquiler||0),vals};
+  const n=dep.ajusteMeses||3;const r=sumaIPC(ym,n,map);
+  if(!r)return{ok:false,faltan:mesesPrevios(ym,n)};
+  const nuevo=Math.round((dep.alquiler||0)*(1+r.pct/100));
+  return{ok:true,pct:r.pct,nuevo,anterior:dep.alquiler||0,nominal:nuevo-(dep.alquiler||0),vals:r.vals};
 }
-/* Trae el IPC al abrir la app (y lo cachea). Si no toca ajuste, no molesta. */
-async function ensureIPC(){try{await fetchIPC();if(currentTab==='mes')renderMes();}catch(e){}}
+/* Reconstruye el alquiler actual desde el pactado inicial + ajustes pasados */
+function reconstruir(dep,map){
+  const n=dep.ajusteMeses||0;let cur=dep.alquilerInicial!=null?dep.alquilerInicial:(dep.alquiler||0);const ajustes=[];
+  if(!n||!dep.contratoInicio)return{cur,ajustes};
+  const startYm=ymOf(dep.contratoInicio);const nowYm=ymNow();let k=1;
+  while(true){const adjYm=shiftYm(startYm,k*n);if(cmpYm(adjYm,nowYm)>0)break;const r=sumaIPC(adjYm,n,map);if(!r)break;const anterior=cur;cur=Math.round(cur*(1+r.pct/100));ajustes.push({ym:adjYm,fecha:adjYm+'-15',pct:r.pct,anterior,nuevo:cur,vals:r.vals});k++;}
+  return{cur,ajustes};
+}
+/* Comisión histórica ya ganada (meses transcurridos, según alquiler vigente en cada mes) */
+function comisionPrevia(dep){
+  if(dep.modalidad==='dueno'||!(dep.comisionPct>0)||!dep.contratoInicio)return 0;
+  const startYm=ymOf(dep.contratoInicio);const nowYm=ymNow();const ajs=(dep.ajustes||[]).slice().sort((a,b)=>a.ym<b.ym?-1:1);
+  let total=0;let m=startYm;let guard=0;
+  while(cmpYm(m,nowYm)<0&&guard<600){let rent=dep.alquilerInicial!=null?dep.alquilerInicial:(dep.alquiler||0);for(const a of ajs){if(cmpYm(a.ym,m)<=0)rent=a.nuevo;}total+=rent*(dep.comisionPct/100);m=shiftYm(m,1);guard++;}
+  return Math.round(total);
+}
+/* Marca como pagados/liquidados los meses previos de un depto ya existente */
+function marcarPrevios(dep){
+  const startYm=ymOf(dep.contratoInicio);if(!startYm)return;const nowYm=ymNow();let m=startYm;let guard=0;
+  while(cmpYm(m,nowYm)<0&&guard<600){if(!state.pagos[m])state.pagos[m]={};state.pagos[m][dep.id]={alq:true,exp:true,ser:true};m=shiftYm(m,1);guard++;}
+}
+/* Aplica automáticamente los ajustes que ya corresponden y avisa */
+function autoAjustes(){
+  const map=ipcMap();const aplicados=[];
+  state.deptos.forEach(dep=>{
+    if(!dep.ajusteMeses||dep.ajusteMeses<=0||!dep.contratoInicio)return;
+    const startYm=ymOf(dep.contratoInicio);const nowYm=ymNow();let k=1;let guard=0;
+    while(guard<200){guard++;const adjYm=shiftYm(startYm,k*dep.ajusteMeses);if(cmpYm(adjYm,nowYm)>0)break;
+      const yaHecho=(dep.ajustes||[]).some(a=>a.ym===adjYm);
+      if(!yaHecho){const r=sumaIPC(adjYm,dep.ajusteMeses,map);if(r){const anterior=dep.alquiler||0;const nuevo=Math.round(anterior*(1+r.pct/100));dep.ajustes=dep.ajustes||[];dep.ajustes.push({ym:adjYm,fecha:new Date().toISOString().slice(0,10),pct:r.pct,anterior,nuevo,vals:r.vals});dep.alquiler=nuevo;aplicados.push({dep,pct:r.pct,anterior,nuevo,vals:r.vals,n:dep.ajusteMeses});}}
+      k++;}
+  });
+  if(aplicados.length){save();render();cartelAjustes(aplicados);}
+}
+function msgAumento(dep,pct,nuevo,n){const per=n===3?'3 meses':n===6?'6 meses':n===12?'12 meses':n+' meses';return 'Hola '+(dep.inqNombre||dep.inquilino||'')+', quería comunicarte que de acuerdo a lo estipulado en el contrato el próximo mes aumenta el alquiler un '+pct.toFixed(1)+'% en línea con el IPC reportado los últimos '+per+', quedando el monto en '+money(nuevo)+'. Muchas gracias!';}
+function cartelAjustes(list){
+  const cards=list.map(a=>{
+    const filas=(a.vals||[]).map(x=>`<div class="liq-line"><span>IPC ${ymLabel(x.ym)}</span><span>${x.val.toFixed(1)}%</span></div>`).join('');
+    const wa=a.dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none;margin-top:8px" href="https://wa.me/${digits(a.dep.telInquilino)}?text=${encodeURIComponent(msgAumento(a.dep,a.pct,a.nuevo,a.n))}" target="_blank" rel="noopener">💬 Comunicar por WhatsApp</a>`:'<div class="sub" style="text-align:center;margin-top:8px">Cargá el WhatsApp del inquilino para avisarle.</div>';
+    return `<div class="card" style="box-shadow:none;border:1px solid var(--line)"><div class="card-name">${esc(a.dep.nombre)}</div>
+      <div class="liq-line tot" style="margin-top:6px"><span>Aumento ${a.pct.toFixed(1)}%</span><span class="pos">${money(a.anterior)} → ${money(a.nuevo)}</span></div>
+      <details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px;color:var(--green);font-weight:700">Ver cálculo (IPC mes a mes)</summary><div style="margin-top:8px">${filas}<div class="liq-line tot"><span>Suma IPC (${a.n} meses)</span><span class="pos">${a.pct.toFixed(1)}%</span></div></div></details>
+      ${wa}</div>`;
+  }).join('');
+  openSheet(`<div style="text-align:center"><div style="font-size:40px">📈</div><h3 style="margin-top:6px">Se aplicó el ajuste por IPC</h3><p class="hint">${list.length} ${list.length===1?'departamento actualizado':'departamentos actualizados'}. Tocá para ver el detalle.</p></div>${cards}<button class="btn btn-ghost" style="margin-top:10px" onclick="closeSheet()">Listo</button>`);
+}
+async function ensureIPC(){try{await fetchIPC();}catch(e){}autoAjustes();}
 async function openAjuste(id){const dep=state.deptos.find(d=>d.id===id);
   openSheet(`
     <h3>Ajuste por IPC</h3>
