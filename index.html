@@ -137,6 +137,9 @@
   .field input:focus,.field select:focus{outline:none;border-color:var(--green);background:#fff}
   .field .sub{font-size:11.5px;color:var(--muted);margin-top:5px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .form-sec{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin:20px 2px 12px;padding-top:14px;border-top:1px solid var(--line)}
+  .form-sec:first-of-type{border-top:none;padding-top:0;margin-top:2px}
+  .req{color:var(--red)}
   .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .seg button{padding:12px;border-radius:12px;border:1.5px solid var(--line);font-weight:600;font-size:13.5px;background:#fbfcfb;color:var(--muted);text-align:center}
   .seg button.on{border-color:var(--green);background:var(--green-soft);color:var(--green)}
@@ -252,8 +255,8 @@ const money=n=>(n<0?'-':'')+'$'+new Intl.NumberFormat('es-AR',{maximumFractionDi
 function esc(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 const digits=t=>(t||'').replace(/[^0-9]/g,'');
 function owner(id){return state.duenos.find(d=>d.id===id);}
-function ownerName(id){const o=owner(id);return o?o.nombre:'Sin dueño';}
-function comision(dep){return (dep.alquiler||0)*(dep.comisionPct||0)/100;}
+function ownerName(id){const o=owner(id);if(!o)return 'Sin dueño';return o.apellido?(o.apellido+(o.nombre?', '+o.nombre:'')):(o.nombre||'Sin nombre');}
+function comision(dep){if(dep.modalidad==='dueno')return 0;return (dep.alquiler||0)*(dep.comisionPct||0)/100;}
 function pagos(deptoId){const m=state.pagos[ym]||{};return m[deptoId]||{alq:false,exp:false,ser:false};}
 function setPago(deptoId,k){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};state.pagos[ym][deptoId][k]=!state.pagos[ym][deptoId][k];save();render();}
 function estaAlDia(dep){const p=pagos(dep.id);return p.alq&&(!dep.expensas||p.exp)&&(!dep.servicios||p.ser);}
@@ -286,7 +289,7 @@ function renderMes(){
   state.deptos.forEach(dep=>{
     if(estaAlDia(dep))alDia++;
     const p=pagos(dep.id);
-    if(p.alq){const c=comision(dep);comTotal+=c;if(dep.modalidad==='pasa'){cobrado+=dep.alquiler||0;aLiquidar+=(dep.alquiler||0)-c;}else{aLiquidar-=c;}}
+    if(p.alq&&dep.modalidad!=='dueno'){const c=comision(dep);comTotal+=c;cobrado+=dep.alquiler||0;aLiquidar+=(dep.alquiler||0)-c;}
   });
   const pct=Math.round(alDia/state.deptos.length*100);
   let html=`<div class="summary">
@@ -352,9 +355,10 @@ function renderDuenos(){
     const deps=state.deptos.filter(x=>x.duenoId===d.id);if(deps.length===0)return;any=true;
     let cobrado=0,com=0,neto=0;const rows=[];
     deps.forEach(dep=>{const p=pagos(dep.id),c=comision(dep);let linea;
-      if(p.alq){com+=c;if(dep.modalidad==='pasa'){cobrado+=dep.alquiler||0;neto+=(dep.alquiler||0)-c;linea=money((dep.alquiler||0)-c);}else{neto-=c;linea='−'+money(c)+' com.';}}
+      if(dep.modalidad==='dueno'){linea='administra el dueño';}
+      else if(p.alq){com+=c;cobrado+=dep.alquiler||0;neto+=(dep.alquiler||0)-c;linea=money((dep.alquiler||0)-c);}
       else linea='sin cobrar';
-      rows.push(`<div class="mini-row"><span>${esc(dep.nombre)} · ${dep.modalidad==='pasa'?'pasa':'directo'}</span><span>${linea}</span></div>`);});
+      rows.push(`<div class="mini-row"><span>${esc(dep.nombre)} · ${dep.modalidad==='dueno'?'directo':'vos'}</span><span>${linea}</span></div>`);});
     const debe=neto>=0;
     const wa=d.telefono?`<a class="contact" href="https://wa.me/${digits(d.telefono)}?text=${encodeURIComponent('Hola'+(d.nombre?' '+d.nombre:'')+'!')}" target="_blank" rel="noopener">💬 WhatsApp</a>`:'';
     html+=`<div class="card">
@@ -431,10 +435,10 @@ function renderDeptos(){
       html+=`<div class="card">
         <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(dep.inquilino||'Sin inquilino')}</div></div>
         <span class="estado-badge ${oc.cls}">${oc.label}</span></div>
-        <div class="liq-line"><span>Alquiler</span><span>${money(dep.alquiler)} · com. ${dep.comisionPct||0}%</span></div>
-        <div class="liq-line"><span>Expensas / Servicios</span><span>${dep.expensas?money(dep.expensas):'—'} / ${dep.servicios?'Sí':'No'}</span></div>
+        <div class="liq-line"><span>Alquiler</span><span>${money(dep.alquiler)}${dep.modalidad==='dueno'?'':' · com. '+(dep.comisionPct||0)+'%'}</span></div>
+        <div class="liq-line"><span>Administración</span><span>${dep.modalidad==='dueno'?'directo el dueño':'lo administrás vos'}</span></div>
         <div class="liq-line"><span>Contrato</span><span>${dep.contratoInicio||'—'} → ${dep.contratoFin||'—'}</span></div>
-        <div class="liq-line"><span>Ajuste IPC · cobro</span><span>cada ${dep.ajusteMeses||3}m · ${dep.modalidad==='pasa'?'pasa por vos':'directo'}</span></div>
+        <div class="liq-line"><span>Ajuste IPC</span><span>${(dep.ajusteMeses&&dep.ajusteMeses>0)?('cada '+dep.ajusteMeses+' meses'):'sin ajuste'}</span></div>
         <div class="liq-line"><span>Garantía</span><span>${dep.garantiaEmpresa?esc(dep.garantiaEmpresa):'—'}</span></div>
         <div class="sheet-actions" style="margin-top:12px">
           <button class="btn btn-ghost btn-sm" onclick="openDepto('${dep.id}')">Editar</button>
@@ -449,87 +453,210 @@ function empty(em,t,d){return `<div class="empty"><div class="em">${em}</div><p>
 function openSheet(html){document.getElementById('sheet').innerHTML='<div class="grab"></div>'+html;document.getElementById('sheetBg').classList.add('open');}
 function closeSheet(){document.getElementById('sheetBg').classList.remove('open');}
 
-let flowSel='pasa';
+let flowSel='vos',estSel='alquilado',ipcSel='si';
 function openDepto(id){
-  const dep=id?state.deptos.find(d=>d.id===id):null;flowSel=dep?dep.modalidad:'pasa';
-  const est=dep?dep.estado||'alquilado':'alquilado';
-  const opts=state.duenos.map(o=>`<option value="${o.id}" ${dep&&dep.duenoId===o.id?'selected':''}>${esc(o.nombre)}</option>`).join('');
+  const dep=id?state.deptos.find(d=>d.id===id):null;
+  flowSel=dep?(dep.modalidad==='dueno'?'dueno':'vos'):'vos';
+  estSel=dep?dep.estado||'alquilado':'alquilado';
+  ipcSel=dep?((dep.ajusteMeses&&dep.ajusteMeses>0)?'si':'no'):'si';
+  const o=dep?owner(dep.duenoId):null;
+  const dl=state.duenos.map(x=>`<option value="${esc(x.apellido||x.nombre||'')}"></option>`).join('');
   openSheet(`
     <h3>${dep?'Editar departamento':'Nuevo departamento'}</h3>
-    <p class="hint">Cargá los datos. Después marcás los pagos mes a mes en “Mes”.</p>
-    <div class="field"><label>Nombre / dirección</label><input id="f_nombre" placeholder="Ej: Av. Corrientes 1234 4ºB" value="${dep?esc(dep.nombre):''}"></div>
-    <div class="field"><label>Dueño</label>
-      <select id="f_dueno">${opts}<option value="__new">➕ Nuevo dueño…</option></select>
-      <div id="newOwnerWrap" style="margin-top:10px;display:none">
-        <input id="f_ownerNew" placeholder="Nombre del dueño nuevo" style="margin-bottom:8px">
-        <input id="f_ownerTel" placeholder="WhatsApp del dueño (opcional)" inputmode="tel"></div></div>
+
+    <div class="form-sec">Estado del departamento</div>
+    <div class="seg" id="f_est" style="grid-template-columns:repeat(3,1fr)">
+      <button type="button" class="${estSel==='alquilado'?'on':''}" onclick="pickEstado('alquilado')">Alquilado</button>
+      <button type="button" class="${estSel==='publicado'?'on':''}" onclick="pickEstado('publicado')">Publicado</button>
+      <button type="button" class="${estSel==='vacio'?'on':''}" onclick="pickEstado('vacio')">Vacío</button></div>
+
+    <div class="form-sec">Detalle del departamento</div>
     <div class="row2">
-      <div class="field"><label>Inquilino actual</label><input id="f_inq" placeholder="Nombre (opcional)" value="${dep?esc(dep.inquilino||''):''}"></div>
-      <div class="field"><label>WhatsApp inquilino</label><input id="f_tel" placeholder="Ej: 11 5555 5555" inputmode="tel" value="${dep?esc(dep.telInquilino||''):''}"></div></div>
+      <div class="field"><label>Calle</label><input id="f_calle" placeholder="Ej: Av. Corrientes" value="${dep?esc(dep.calle||''):''}"></div>
+      <div class="field"><label>Número</label><input id="f_num" inputmode="numeric" placeholder="Ej: 1234" value="${dep?esc(dep.numero||''):''}"></div></div>
     <div class="row2">
-      <div class="field"><label>Alquiler</label><input id="f_alq" type="number" inputmode="numeric" placeholder="0" value="${dep?dep.alquiler||'':''}"></div>
-      <div class="field"><label>Comisión (%)</label><input id="f_com" type="number" inputmode="decimal" placeholder="Ej: 8" value="${dep?dep.comisionPct||'':''}"></div></div>
+      <div class="field"><label>Piso</label><input id="f_piso" placeholder="Ej: 4 / PB" value="${dep?esc(dep.piso||''):''}"></div>
+      <div class="field"><label>Depto</label><input id="f_dep" placeholder="Ej: B" value="${dep?esc(dep.depto||''):''}"></div></div>
+
+    <div class="form-sec">Detalle del dueño</div>
+    <input type="hidden" id="f_duenoId" value="${dep?esc(dep.duenoId||''):''}">
+    <datalist id="ownersList">${dl}</datalist>
     <div class="row2">
-      <div class="field"><label>Expensas <span style="color:var(--muted);font-weight:400">(aprox.)</span></label><input id="f_exp" type="number" inputmode="numeric" placeholder="0 / vacío" value="${dep?dep.expensas||'':''}"></div>
-      <div class="field"><label>¿Cobra servicios?</label><select id="f_ser"><option value="no" ${(dep&&dep.servicios)?'':'selected'}>No</option><option value="si" ${(dep&&dep.servicios)?'selected':''}>Sí (agua, luz, gas)</option></select></div></div>
-    <div class="field"><label>¿Cómo cobra el alquiler?</label>
+      <div class="field"><label>Apellido</label><input id="f_oap" list="ownersList" autocomplete="off" placeholder="Empezá a escribir…" oninput="ownerSuggest()" value="${o?esc(o.apellido||''):''}"></div>
+      <div class="field"><label>Nombre</label><input id="f_onom" placeholder="Nombre" value="${o?esc(o.nombre||''):''}"></div></div>
+    <div class="row2">
+      <div class="field"><label>DNI</label><input id="f_odni" inputmode="numeric" placeholder="Sin puntos" value="${o?esc(o.dni||''):''}"></div>
+      <div class="field"><label>Teléfono</label><input id="f_otel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${o?esc(o.telefono||''):''}"></div></div>
+    <div class="sub" id="ownerHint" style="margin:-6px 2px 0"></div>
+
+    <div id="inqSection" style="display:${estSel==='alquilado'?'block':'none'}">
+      <div class="form-sec">Detalle del inquilino</div>
+      <div class="row2">
+        <div class="field"><label>Apellido</label><input id="f_iap" placeholder="Apellido" value="${dep?esc(dep.inqApellido||''):''}"></div>
+        <div class="field"><label>Nombre</label><input id="f_inom" placeholder="Nombre" value="${dep?esc(dep.inqNombre||''):''}"></div></div>
+      <div class="row2">
+        <div class="field"><label>DNI</label><input id="f_idni" inputmode="numeric" placeholder="Sin puntos" value="${dep?esc(dep.inqDni||''):''}"></div>
+        <div class="field"><label>Teléfono</label><input id="f_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${dep?esc(dep.telInquilino||''):''}"></div></div>
+      <div class="field"><label>Garantía de caución (empresa) <span style="color:var(--muted);font-weight:400">— opcional</span></label><input id="f_garemp" list="garList" autocomplete="off" placeholder="Ej: Finaer" oninput="garSuggest()" value="${dep?esc(dep.garantiaEmpresa||''):''}"></div>
+      <datalist id="garList">${[...new Set(state.deptos.map(d=>d.garantiaEmpresa).filter(Boolean))].map(e=>`<option value="${esc(e)}"></option>`).join('')}</datalist>
+      <div class="field" id="garTelWrap" style="display:${dep&&dep.garantiaEmpresa?'block':'none'}"><label>WhatsApp de la garantía</label><input id="f_gartel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${dep?esc(dep.garantiaTel||''):''}"></div>
+    </div>
+
+    <div class="form-sec">Detalle del contrato</div>
+    <div class="row2">
+      <div class="field"><label>Fecha de inicio</label><input id="f_ini" type="month" value="${dep?dep.contratoInicio||'':''}"></div>
+      <div class="field"><label>Fecha de fin</label><input id="f_fin" type="month" value="${dep?dep.contratoFin||'':''}"></div></div>
+    <div class="field"><label>Alquiler actual</label><input id="f_alq" type="number" inputmode="numeric" placeholder="0" value="${dep?dep.alquiler||'':''}"></div>
+    <div class="field"><label>Administración</label>
       <div class="seg" id="f_flow">
-        <button type="button" class="${flowSel==='pasa'?'on':''}" onclick="pickFlow('pasa')">Pasa por vos</button>
-        <button type="button" class="${flowSel==='directo'?'on':''}" onclick="pickFlow('directo')">Directo al dueño</button></div>
-      <div class="sub">“Pasa por vos” = cobrás vos y le liquidás al dueño. “Directo” = el inquilino le paga al dueño.</div></div>
-    <div class="row2">
-      <div class="field"><label>Inicio de contrato</label><input id="f_ini" type="month" value="${dep?dep.contratoInicio||'':''}"></div>
-      <div class="field"><label>Fin de contrato</label><input id="f_fin" type="month" value="${dep?dep.contratoFin||'':''}"></div></div>
-    <div class="row2">
-      <div class="field"><label>Ajuste IPC</label>
-        <select id="f_aj">
-          <option value="3" ${!dep||dep.ajusteMeses===3?'selected':''}>Trimestral</option>
-          <option value="4" ${dep&&dep.ajusteMeses===4?'selected':''}>Cuatrimestral</option>
-          <option value="6" ${dep&&dep.ajusteMeses===6?'selected':''}>Semestral</option>
-          <option value="12" ${dep&&dep.ajusteMeses===12?'selected':''}>Anual</option></select></div>
-      <div class="field"><label>Estado</label>
-        <select id="f_est">
-          <option value="alquilado" ${est==='alquilado'?'selected':''}>Alquilado</option>
-          <option value="publicado" ${est==='publicado'?'selected':''}>Publicado</option>
-          <option value="vacio" ${est==='vacio'?'selected':''}>Vacío</option></select></div></div>
-    <div class="row2">
-      <div class="field"><label>Garantía de caución (empresa)</label><input id="f_garemp" placeholder="Ej: Finaer, Garantías X" value="${dep?esc(dep.garantiaEmpresa||''):''}"></div>
-      <div class="field"><label>WhatsApp de la garantía</label><input id="f_gartel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${dep?esc(dep.garantiaTel||''):''}"></div></div>
-    <div class="field"><label>Notas</label><input id="f_notas" placeholder="Ej: cochera incluida, mascota, depósito…" value="${dep?esc(dep.notas||''):''}"></div>
-    <div class="sheet-actions">
+        <button type="button" class="${flowSel==='vos'?'on':''}" onclick="pickFlow('vos')">Lo administrás vos</button>
+        <button type="button" class="${flowSel==='dueno'?'on':''}" onclick="pickFlow('dueno')">Directo el dueño</button></div>
+      <div class="sub">“Directo el dueño” = lo maneja el dueño; queda solo en tu radar para cuando se libere.</div></div>
+    <div class="field" id="comWrap" style="display:${flowSel==='dueno'?'none':'block'}"><label>Comisión (%)</label><input id="f_com" type="number" inputmode="decimal" placeholder="Ej: 8" value="${dep?dep.comisionPct||'':''}"></div>
+    <div class="field"><label>Ajuste por IPC</label>
+      <div class="seg" id="f_ipc">
+        <button type="button" class="${ipcSel==='si'?'on':''}" onclick="pickIPC('si')">Sí</button>
+        <button type="button" class="${ipcSel==='no'?'on':''}" onclick="pickIPC('no')">No</button></div></div>
+    <div class="field" id="ipcFreqWrap" style="display:${ipcSel==='si'?'block':'none'}"><label>Frecuencia del ajuste</label>
+      <select id="f_aj">
+        <option value="3" ${!dep||dep.ajusteMeses===3?'selected':''}>Trimestral</option>
+        <option value="6" ${dep&&dep.ajusteMeses===6?'selected':''}>Semestral</option>
+        <option value="12" ${dep&&dep.ajusteMeses===12?'selected':''}>Anual</option></select></div>
+
+    <div class="sheet-actions" style="margin-top:8px">
       <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveDepto('${id||''}')">Guardar</button></div>`);
-  document.getElementById('f_dueno').addEventListener('change',e=>{document.getElementById('newOwnerWrap').style.display=e.target.value==='__new'?'block':'none';});
-  if(state.duenos.length===0){document.getElementById('f_dueno').value='__new';document.getElementById('newOwnerWrap').style.display='block';}
 }
-function pickFlow(v){flowSel=v;document.querySelectorAll('#f_flow button').forEach((b,i)=>b.classList.toggle('on',(v==='pasa')?i===0:i===1));}
+function pickEstado(v){estSel=v;document.querySelectorAll('#f_est button').forEach(b=>b.classList.remove('on'));document.querySelectorAll('#f_est button')[v==='alquilado'?0:v==='publicado'?1:2].classList.add('on');document.getElementById('inqSection').style.display=v==='alquilado'?'block':'none';}
+function pickFlow(v){flowSel=v;document.querySelectorAll('#f_flow button').forEach((b,i)=>b.classList.toggle('on',(v==='vos')?i===0:i===1));document.getElementById('comWrap').style.display=v==='dueno'?'none':'block';}
+function pickIPC(v){ipcSel=v;document.querySelectorAll('#f_ipc button').forEach((b,i)=>b.classList.toggle('on',(v==='si')?i===0:i===1));document.getElementById('ipcFreqWrap').style.display=v==='si'?'block':'none';}
+function toggleGarTel(){const emp=document.getElementById('f_garemp').value.trim();document.getElementById('garTelWrap').style.display=emp?'block':'none';}
+function garSuggest(){
+  toggleGarTel();
+  const emp=document.getElementById('f_garemp').value.trim().toLowerCase();if(!emp)return;
+  const match=state.deptos.find(d=>d.garantiaEmpresa&&d.garantiaEmpresa.trim().toLowerCase()===emp&&d.garantiaTel);
+  const tel=document.getElementById('f_gartel');
+  if(match&&tel&&!tel.value){tel.value=match.garantiaTel;}
+}
+function ownerSuggest(){
+  const ap=document.getElementById('f_oap').value.trim().toLowerCase();if(!ap)return;
+  const match=state.duenos.find(d=>(d.apellido||d.nombre||'').trim().toLowerCase()===ap);
+  const hint=document.getElementById('ownerHint');
+  if(match){
+    document.getElementById('f_duenoId').value=match.id;
+    document.getElementById('f_onom').value=match.nombre||'';
+    document.getElementById('f_odni').value=match.dni||'';
+    document.getElementById('f_otel').value=match.telefono||'';
+    hint.innerHTML='✓ Dueño ya cargado — datos autocompletados.';
+    const otro=state.deptos.find(d=>d.duenoId===match.id&&d.comisionPct);
+    const com=document.getElementById('f_com');if(otro&&com&&!com.value){com.value=otro.comisionPct;}
+  }else{document.getElementById('f_duenoId').value='';hint.innerHTML='';}
+}
 function saveDepto(id){
-  const nombre=document.getElementById('f_nombre').value.trim();if(!nombre){toast('Poné un nombre o dirección');return;}
-  let duenoId=document.getElementById('f_dueno').value;
-  if(duenoId==='__new'){const nm=document.getElementById('f_ownerNew').value.trim();if(!nm){toast('Escribí el nombre del dueño');return;}duenoId=uid();state.duenos.push({id:duenoId,nombre:nm,telefono:document.getElementById('f_ownerTel').value.trim()});}
+  const val=x=>document.getElementById(x).value.trim();
+  const calle=val('f_calle'),numero=val('f_num'),piso=val('f_piso'),depto=val('f_dep');
+  if(!calle||!numero||!piso||!depto){toast('Completá calle, número, piso y depto');return;}
+  const oap=val('f_oap'),onom=val('f_onom'),odni=val('f_odni'),otel=val('f_otel');
+  if(!oap||!onom||!odni||!otel){toast('Completá los datos del dueño');return;}
+  let duenoId=val('f_duenoId');
+  const oData={apellido:oap,nombre:onom,dni:odni,telefono:otel};
+  if(duenoId){const d=owner(duenoId);if(d)Object.assign(d,oData);else{duenoId=uid();state.duenos.push({id:duenoId,...oData});}}
+  else{duenoId=uid();state.duenos.push({id:duenoId,...oData});}
+  const nombre=calle+' '+numero+', Piso '+piso+' Depto '+depto;
+  const estado=estSel;
   const num=v=>{const n=parseFloat(document.getElementById(v).value);return isNaN(n)?0:n;};
-  const data={nombre,duenoId,inquilino:document.getElementById('f_inq').value.trim(),telInquilino:document.getElementById('f_tel').value.trim(),alquiler:num('f_alq'),comisionPct:num('f_com'),expensas:num('f_exp'),servicios:document.getElementById('f_ser').value==='si',modalidad:flowSel,contratoInicio:document.getElementById('f_ini').value,contratoFin:document.getElementById('f_fin').value,ajusteMeses:parseInt(document.getElementById('f_aj').value),estado:document.getElementById('f_est').value,garantiaEmpresa:document.getElementById('f_garemp').value.trim(),garantiaTel:document.getElementById('f_gartel').value.trim(),notas:document.getElementById('f_notas').value.trim()};
+  if(!val('f_ini')||!val('f_fin')){toast('Cargá inicio y fin de contrato');return;}
+  if(num('f_alq')<=0){toast('Cargá el alquiler');return;}
+  let inq={inqApellido:'',inqNombre:'',inqDni:'',telInquilino:'',inquilino:'',garantiaEmpresa:'',garantiaTel:''};
+  if(estado==='alquilado'){
+    const iap=val('f_iap'),inom=val('f_inom'),idni=val('f_idni'),itel=val('f_tel');
+    if(!iap||!inom||!idni||!itel){toast('Completá los datos del inquilino');return;}
+    const garemp=val('f_garemp');const gartel=garemp?val('f_gartel'):'';
+    if(garemp&&!gartel){toast('Cargá el WhatsApp de la garantía');return;}
+    inq={inqApellido:iap,inqNombre:inom,inqDni:idni,telInquilino:itel,inquilino:iap+', '+inom,garantiaEmpresa:garemp,garantiaTel:gartel};
+  }
+  const modalidad=flowSel;
+  const data={nombre,calle,numero,piso,depto,duenoId,estado,...inq,
+    alquiler:num('f_alq'),modalidad,comisionPct:modalidad==='dueno'?0:num('f_com'),
+    contratoInicio:val('f_ini'),contratoFin:val('f_fin'),
+    ajusteIPC:ipcSel==='si',ajusteMeses:ipcSel==='si'?parseInt(document.getElementById('f_aj').value):0};
   if(id){const d=state.deptos.find(x=>x.id===id);Object.assign(d,data);}else{state.deptos.push({id:uid(),ajustes:[],...data});}
   save();closeSheet();render();toast(id?'Depto actualizado':'Depto agregado');
 }
 function delDepto(id){if(!confirm('¿Borrar este departamento? Se pierden sus pagos registrados.'))return;state.deptos=state.deptos.filter(d=>d.id!==id);Object.values(state.pagos).forEach(m=>delete m[id]);save();render();toast('Depto borrado');}
 
-function openAjuste(id){const dep=state.deptos.find(d=>d.id===id);
+let IPC_CACHE=null;
+async function fetchIPC(){
+  if(IPC_CACHE)return IPC_CACHE;
+  // Serie oficial INDEC: IPC Nacional Nivel General (índice, base dic-2016=100)
+  const r=await fetch('https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26&format=json&last=60');
+  if(!r.ok)throw new Error('http');
+  const j=await r.json();const rows=(j&&j.data)||[];
+  // Guardo el nivel del índice por mes; el % mensual se calcula contra el mes anterior
+  const idx={};rows.forEach(row=>{if(row&&row[0]!=null&&row[1]!=null)idx[String(row[0]).slice(0,7)]=Number(row[1]);});
+  // % mensual = (indice[m]/indice[m-1]-1)*100  (variación oficial INDEC del mes)
+  const map={};Object.keys(idx).forEach(m=>{const prev=shiftYm(m,-1);if(idx[prev]!=null)map[m]=(idx[m]/idx[prev]-1)*100;});
+  IPC_CACHE=map;
+  try{state.ipc=Object.assign({},state.ipc,map);localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
+  return map;
+}
+function ipcMap(){return IPC_CACHE||state.ipc||{};}
+function mesesPrevios(ymBase,n){const out=[];let v=ymBase;for(let i=0;i<n;i++){v=shiftYm(v,-1);out.unshift(v);}return out;}
+function calcAjusteIPC(dep,map){
+  const n=dep.ajusteMeses||3;const meses=mesesPrevios(ym,n);
+  const vals=[];const faltan=[];
+  meses.forEach(m=>{if(map[m]!=null&&!isNaN(map[m]))vals.push({ym:m,val:map[m]});else faltan.push(m);});
+  if(faltan.length)return{ok:false,faltan};
+  // SUMA simple de los % mensuales (no compuesto): 3+3+3 = 9
+  let pct=0;vals.forEach(x=>pct+=x.val);
+  const nuevo=Math.round((dep.alquiler||0)*(1+pct/100));
+  return{ok:true,pct,nuevo,anterior:dep.alquiler||0,nominal:nuevo-(dep.alquiler||0),vals};
+}
+/* Trae el IPC al abrir la app (y lo cachea). Si no toca ajuste, no molesta. */
+async function ensureIPC(){try{await fetchIPC();if(currentTab==='mes')renderMes();}catch(e){}}
+async function openAjuste(id){const dep=state.deptos.find(d=>d.id===id);
   openSheet(`
     <h3>Ajuste por IPC</h3>
     <p class="hint">${esc(dep.nombre)} · alquiler actual <strong>${money(dep.alquiler)}</strong></p>
-    <div class="field"><label>% de aumento del período</label>
-      <input id="aj_pct" type="number" inputmode="decimal" placeholder="Ej: 18.5" oninput="previewAjuste(${dep.alquiler})">
+    <div id="ipc_box" class="card" style="box-shadow:none;border:1px solid var(--line)"><div style="text-align:center;color:var(--muted);font-size:13px">Buscando IPC automático…</div></div>
+    <div class="field"><label>% de aumento a aplicar</label>
+      <input id="aj_pct" type="number" inputmode="decimal" placeholder="Se completa solo con el IPC" oninput="previewAjuste(${dep.alquiler})">
       <div class="sub" id="aj_prev">Nuevo alquiler: —</div></div>
     <div class="field"><label>…o poné el monto nuevo a mano</label><input id="aj_manual" type="number" inputmode="numeric" placeholder="Alquiler nuevo directo"></div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveAjuste('${id}')">Aplicar ajuste</button></div>`);
+  try{
+    const map=await fetchIPC();const r=calcAjusteIPC(dep,map);const box=document.getElementById('ipc_box');if(!box)return;
+    if(r.ok){
+      const inp=document.getElementById('aj_pct');if(inp){inp.value=r.pct.toFixed(2);previewAjuste(dep.alquiler);}
+      const filas=r.vals.map(x=>`<div class="liq-line"><span>IPC ${ymLabel(x.ym)}</span><span>${x.val.toFixed(1)}%</span></div>`).join('');
+      box.innerHTML=`${filas}<div class="liq-line tot"><span>Suma IPC (${dep.ajusteMeses||3} meses)</span><span class="pos">${r.pct.toFixed(2)}%</span></div><div class="liq-line"><span>Aumento</span><span>${money(r.nominal)}</span></div><div class="liq-line"><span>Nuevo alquiler</span><span><strong>${money(r.nuevo)}</strong></span></div>`;
+    }else{
+      box.innerHTML=`<div style="font-size:13px;color:var(--amber);font-weight:600">Todavía no se publicó el IPC de: ${r.faltan.map(ymLabel).join(', ')}.</div><div style="font-size:12.5px;color:var(--muted);margin-top:6px">Podés cargar el % a mano abajo, o esperar a que INDEC lo publique (suele salir a mitad del mes siguiente).</div>`;
+    }
+  }catch(e){const box=document.getElementById('ipc_box');if(box)box.innerHTML=`<div style="font-size:13px;color:var(--muted)">No se pudo traer el IPC automático (sin internet o la fuente no responde). Cargá el % a mano abajo.</div>`;}
 }
 function previewAjuste(base){const p=parseFloat(document.getElementById('aj_pct').value);document.getElementById('aj_prev').textContent=isNaN(p)?'Nuevo alquiler: —':'Nuevo alquiler: '+money(base*(1+p/100));}
 function saveAjuste(id){const dep=state.deptos.find(d=>d.id===id);const manual=parseFloat(document.getElementById('aj_manual').value);const pct=parseFloat(document.getElementById('aj_pct').value);let nuevo;
   if(!isNaN(manual)&&manual>0)nuevo=Math.round(manual);else if(!isNaN(pct))nuevo=Math.round(dep.alquiler*(1+pct/100));else{toast('Cargá un % o un monto');return;}
-  dep.ajustes=dep.ajustes||[];dep.ajustes.push({ym,fecha:new Date().toISOString().slice(0,10),pct:isNaN(pct)?null:pct,anterior:dep.alquiler,nuevo});dep.alquiler=nuevo;save();closeSheet();render();toast('Alquiler ajustado a '+money(nuevo));}
+  const anterior=dep.alquiler;const pctReal=anterior?((nuevo/anterior)-1)*100:0;
+  dep.ajustes=dep.ajustes||[];dep.ajustes.push({ym,fecha:new Date().toISOString().slice(0,10),pct:isNaN(pct)?pctReal:pct,anterior,nuevo});
+  dep.alquiler=nuevo;save();render();avisoAumento(dep,anterior,nuevo,isNaN(pct)?pctReal:pct);}
+function avisoAumento(dep,anterior,nuevo,pct){
+  const nominal=nuevo-anterior;
+  const msg='Hola'+(dep.inquilino?' '+dep.inquilino:'')+'! Te informo la actualización del alquiler de '+dep.nombre+' por IPC.\n\n• Ajuste: '+pct.toFixed(2)+'%\n• Aumento: '+money(nominal)+'\n• Alquiler nuevo: '+money(nuevo)+' (antes '+money(anterior)+')\n\nRige desde '+ymLabel(ym)+'. Cualquier duda quedo a disposición. ¡Gracias!'+firmaOrg();
+  const wa=dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" onclick="closeSheet()">💬 Avisar al inquilino por WhatsApp</a>`:`<div class="sub" style="text-align:center">Cargá el WhatsApp del inquilino en el depto para poder avisarle con un toque.</div>`;
+  openSheet(`
+    <div style="text-align:center"><div style="font-size:40px">✅</div><h3 style="margin-top:6px">Alquiler actualizado</h3><p class="hint">${esc(dep.nombre)}</p></div>
+    <div class="card" style="box-shadow:none;border:1px solid var(--line)">
+      <div class="liq-line"><span>Ajuste IPC</span><span class="pos">${pct.toFixed(2)}%</span></div>
+      <div class="liq-line"><span>Aumento</span><span>${money(nominal)}</span></div>
+      <div class="liq-line tot"><span>Nuevo alquiler</span><span>${money(nuevo)}</span></div>
+      <div class="liq-line"><span>Anterior</span><span style="color:var(--muted)">${money(anterior)}</span></div></div>
+    <div style="margin-top:6px">${wa}</div>
+    <button class="btn btn-ghost" style="margin-top:10px" onclick="closeSheet()">Listo</button>`);
+}
 
 function openAlquiler(preId){const dp=preId?state.deptos.find(d=>d.id===preId):null;alqTipo=(dp&&dp.inquilino)?'renovacion':'nuevo';const opts=state.deptos.map(d=>`<option value="${d.id}" ${preId===d.id?'selected':''}>${esc(d.nombre)} — ${esc(ownerName(d.duenoId))}</option>`).join('');
   openSheet(`
@@ -565,7 +692,7 @@ function delAlquiler(id){if(!confirm('¿Borrar este registro?'))return;state.alq
 
 function openSettings(){
   const cfg=state.config||{};const org=cfg.organizador||{};const cob=cfg.cobranza||{diasRecordar:5,diasReclamar:10};
-  const ownersHtml=state.duenos.length?state.duenos.map(o=>{const n=state.deptos.filter(d=>d.duenoId===o.id).length;return `<div class="owner-row"><div><div class="nm">${esc(o.nombre)}</div><div class="sm">${n} ${n===1?'depto':'deptos'}${o.telefono?' · 📱 '+esc(o.telefono):''}</div></div><div class="acts"><button class="btn-ghost" onclick="editOwner('${o.id}')">Editar</button>${n===0?`<button class="btn-danger" onclick="delOwner('${o.id}')">Borrar</button>`:''}</div></div>`;}).join(''):'<div class="sm" style="color:var(--muted);font-size:13px">Todavía no hay dueños.</div>';
+  const ownersHtml=state.duenos.length?state.duenos.map(o=>{const n=state.deptos.filter(d=>d.duenoId===o.id).length;return `<div class="owner-row"><div><div class="nm">${esc(ownerName(o.id))}</div><div class="sm">${n} ${n===1?'depto':'deptos'}${o.telefono?' · 📱 '+esc(o.telefono):''}</div></div><div class="acts"><button class="btn-ghost" onclick="editOwner('${o.id}')">Editar</button>${n===0?`<button class="btn-danger" onclick="delOwner('${o.id}')">Borrar</button>`:''}</div></div>`;}).join(''):'<div class="sm" style="color:var(--muted);font-size:13px">Todavía no hay dueños.</div>';
   openSheet(`
     <h3>Ajustes</h3>
     <p class="hint">Los datos viven en este dispositivo. Guardá una copia cada tanto.</p>
@@ -584,13 +711,17 @@ function openSettings(){
 function editOwner(id){const o=owner(id);
   openSheet(`
     <h3>Editar dueño</h3>
-    <div class="field"><label>Nombre</label><input id="o_nombre" value="${esc(o.nombre)}"></div>
-    <div class="field"><label>WhatsApp (opcional)</label><input id="o_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${esc(o.telefono||'')}"></div>
+    <div class="row2">
+      <div class="field"><label>Apellido</label><input id="o_ap" value="${esc(o.apellido||'')}"></div>
+      <div class="field"><label>Nombre</label><input id="o_nombre" value="${esc(o.nombre||'')}"></div></div>
+    <div class="row2">
+      <div class="field"><label>DNI</label><input id="o_dni" inputmode="numeric" value="${esc(o.dni||'')}"></div>
+      <div class="field"><label>Teléfono</label><input id="o_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${esc(o.telefono||'')}"></div></div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" onclick="openSettings()">Volver</button>
       <button class="btn btn-primary" onclick="saveOwner('${id}')">Guardar</button></div>`);
 }
-function saveOwner(id){const o=owner(id);const nm=document.getElementById('o_nombre').value.trim();if(!nm){toast('Poné un nombre');return;}o.nombre=nm;o.telefono=document.getElementById('o_tel').value.trim();save();openSettings();render();toast('Dueño actualizado');}
+function saveOwner(id){const o=owner(id);const nm=document.getElementById('o_nombre').value.trim();const ap=document.getElementById('o_ap').value.trim();if(!ap&&!nm){toast('Poné apellido y nombre');return;}o.apellido=ap;o.nombre=nm;o.dni=document.getElementById('o_dni').value.trim();o.telefono=document.getElementById('o_tel').value.trim();save();openSettings();render();toast('Dueño actualizado');}
 function delOwner(id){if(!confirm('¿Borrar este dueño?'))return;state.duenos=state.duenos.filter(d=>d.id!==id);save();openSettings();render();toast('Dueño borrado');}
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='alquileres-'+ymNow()+'.json';a.click();toast('Copia descargada');}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.duenos)throw 0;if(!d.config)d.config={onboarded:true,organizador:{nombre:'',tel:''},pin:''};state=d;save();closeSheet();render();toast('Datos restaurados');}catch(x){toast('Archivo inválido');}};r.readAsText(f);}
@@ -687,7 +818,7 @@ function obNext(){captureOb();const total=obSteps().length;if(obStep<total-1){ob
 function finishOnboarding(){state.config.onboarded=true;save();hideGate();if(!obTourOnly){go('deptos');setTimeout(()=>toast('¡Listo! Empezá cargando tu primer depto'),300);}else{toast('Tutorial terminado');}}
 function startTour(){closeSheet();openOnboarding(true);}
 
-function boot(){render();if(!state.config.onboarded){openOnboarding(false);}}
+function boot(){render();if(!state.config.onboarded){openOnboarding(false);}ensureIPC();}
 
 /* ============ Login + sincronización con Supabase ============ */
 async function authBoot(){
@@ -711,16 +842,24 @@ async function afterLogin(){
 }
 function showLogin(isSignup){
   const g=document.getElementById('gate');g.classList.add('show');
-  g.innerHTML=`<div class="gate-card">
-    <div class="gate-emoji">🏠</div>
-    <h2>${isSignup?'Crear cuenta':'Ingresar'}</h2>
-    <p class="gate-p">${isSignup?'Creá el usuario una sola vez.':'Entrá con tu email y contraseña.'}</p>
-    <div class="field" style="text-align:left"><label>Email</label><input id="lg_email" type="email" inputmode="email" placeholder="tucorreo@gmail.com"></div>
-    <div class="field" style="text-align:left"><label>Contraseña</label><input id="lg_pass" type="password" placeholder="••••••"></div>
-    <div class="gate-err" id="lg_err"></div>
-    <button class="btn btn-primary" onclick="doAuth(${isSignup})">${isSignup?'Crear cuenta':'Entrar'}</button>
-    <button class="gate-link" onclick="showLogin(${!isSignup})">${isSignup?'Ya tengo cuenta, ingresar':'Crear una cuenta nueva'}</button>
+  g.innerHTML=`<div style="max-width:400px;width:100%;margin:auto">
+    <div style="text-align:center;color:#fff;padding:8px 8px 22px">
+      <div style="font-size:46px;line-height:1">🏢</div>
+      <div style="font-size:34px;font-weight:800;letter-spacing:.04em;margin-top:8px">ADMINISTRIA</div>
+      <div style="font-size:16px;font-weight:600;color:#d7f2e6;margin-top:8px;line-height:1.4">Todos tus alquileres, bajo control.</div>
+      <div style="font-size:13.5px;color:#a9dcc6;margin-top:6px;line-height:1.5">Cobros, dueños, vencimientos y ajustes por IPC — en un solo lugar, desde el celu o la compu.</div>
+    </div>
+    <div class="gate-card" style="margin:0">
+      <h2 style="font-size:19px">${isSignup?'Crear cuenta':'Ingresar'}</h2>
+      <p class="gate-p">${isSignup?'Creá el usuario una sola vez.':'Entrá con tu email y contraseña.'}</p>
+      <div class="field" style="text-align:left"><label>Email</label><input id="lg_email" type="email" inputmode="email" placeholder="tucorreo@gmail.com"></div>
+      <div class="field" style="text-align:left"><label>Contraseña</label><input id="lg_pass" type="password" placeholder="••••••"></div>
+      <div class="gate-err" id="lg_err"></div>
+      <button class="btn btn-primary" onclick="doAuth(${isSignup})">${isSignup?'Crear cuenta':'Entrar'}</button>
+      <button class="gate-link" onclick="showLogin(${!isSignup})">${isSignup?'Ya tengo cuenta, ingresar':'Crear una cuenta nueva'}</button>
+    </div>
   </div>`;
+  return;
 }
 async function doAuth(isSignup){
   const email=document.getElementById('lg_email').value.trim();
