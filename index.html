@@ -136,6 +136,15 @@
   .pago-fecha b{color:var(--ink)}
   .edit-link{color:var(--green);font-weight:700;text-decoration:underline;margin-left:4px}
   .comp-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+  .aviso-aumento{margin-top:10px;background:var(--amber-soft);border:1px solid #f0dcae;border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;color:var(--amber);cursor:pointer}
+  .aviso-aumento b{color:var(--ink)}
+  .field textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px;font-family:inherit;color:var(--ink);background:var(--surface);resize:vertical;line-height:1.5;box-sizing:border-box}
+  .field textarea:focus{outline:none;border-color:var(--green)}
+  .ph-list{display:flex;flex-wrap:wrap;gap:7px;margin:2px 0 4px}
+  .ph-chip{display:inline-flex;align-items:baseline;gap:5px;font-size:12px;font-weight:700;color:var(--green);background:var(--green-soft);border:1px solid #cfe8dc;border-radius:9px;padding:6px 9px;cursor:pointer;max-width:100%}
+  .ph-chip span{font-size:10.5px;font-weight:500;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ph-chip:active{background:var(--green);color:#fff}
+  .tpl-preview{margin-top:10px;background:var(--bg);border:1px dashed var(--line);border-radius:10px;padding:11px 13px;font-size:12.5px;color:var(--muted);white-space:pre-wrap;line-height:1.5}
   .dash-chart-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px}
   .dash-chart-avg{font-size:11.5px;font-weight:700;color:var(--green)}
   .chip-due{border-color:#f0c9d0;background:var(--red-soft)}
@@ -400,6 +409,8 @@ function renderMes(){
     const waGar=(rojo&&dep.garantiaTel)?`<a class="contact contact-red" href="https://wa.me/${digits(dep.garantiaTel)}?text=${encodeURIComponent(garantiaText(dep))}" target="_blank" rel="noopener">🛡️ Avisar a garantía</a>`:'';
     const aj=ajusteDelMes(dep);
     const info=aj?`<span class="chip-info" onclick="event.stopPropagation();openAjusteInfo('${dep.id}','${aj.ym}')" title="Ver detalle del aumento">i</span>`:'';
+    const proxYm=shiftYm(ym,1);const avisoAj=(dep.ajustes||[]).find(a=>a.ym===proxYm);
+    const avisoCard=avisoAj?`<div class="aviso-aumento" onclick="openAjusteInfo('${dep.id}','${proxYm}')">📈 El mes que viene aumenta <b>${avisoAj.pct.toFixed(1)}%</b> por IPC · ${money(avisoAj.anterior)} → ${money(avisoAj.nuevo)} <span class="edit-link">ver y avisar</span></div>`:'';
     const rent=alquilerEnMes(dep);
     const alqChip=`<button class="chip ${p.alq?'paid':''}" onclick="setPago('${dep.id}','alq')"><div class="lbl">Alquiler ${info}</div><div class="amt">${money(rent)}</div><div class="mk">${p.alq?'✓ Pagó':'Pendiente'}</div></button>`;
     let fechaLine='';
@@ -416,6 +427,7 @@ function renderMes(){
         ${chip(dep,'ser','Servicios',null,p.ser,!dep.servicios,true)}
       </div>
       ${fechaLine}
+      ${avisoCard}
       ${(wa||waGar)?`<div class="wa-row">${wa}${waGar}</div>`:''}
       ${ajustePendiente(dep)?`<div class="adj-banner"><span class="txt">&#9201; Toca ajuste por IPC</span><button onclick="openAjuste('${dep.id}')">Aplicar</button></div>`:''}
     </div>`;
@@ -852,28 +864,30 @@ function marcarPrevios(dep){
 }
 /* Aplica automáticamente los ajustes que ya corresponden y avisa */
 function autoAjustes(){
-  const map=ipcMap();const aplicados=[];
+  const map=ipcMap();const nuevos=[];
   state.deptos.forEach(dep=>{
     if(!dep.ajusteMeses||dep.ajusteMeses<=0||!dep.contratoInicio)return;
-    const startYm=ymOf(dep.contratoInicio);const nowYm=ymNow();let k=1;let guard=0;
-    while(guard<200){guard++;const adjYm=shiftYm(startYm,k*dep.ajusteMeses);if(cmpYm(adjYm,nowYm)>0)break;
-      const yaHecho=(dep.ajustes||[]).some(a=>a.ym===adjYm);
-      if(!yaHecho){const r=sumaIPC(adjYm,dep.ajusteMeses,map);if(r){const anterior=dep.alquiler||0;const nuevo=Math.round(anterior*(1+r.pct/100));dep.ajustes=dep.ajustes||[];dep.ajustes.push({ym:adjYm,fecha:new Date().toISOString().slice(0,10),pct:r.pct,anterior,nuevo,vals:r.vals});dep.alquiler=nuevo;aplicados.push({dep,pct:r.pct,anterior,nuevo,vals:r.vals,n:dep.ajusteMeses});}}
+    const startYm=ymOf(dep.contratoInicio);const nowYm=ymNow();const horizonte=shiftYm(nowYm,1);let k=1;let guard=0;
+    while(guard<300){guard++;const effYm=shiftYm(startYm,k*dep.ajusteMeses);if(cmpYm(effYm,horizonte)>0)break; // no precomputar más allá del mes que viene
+      const yaHecho=(dep.ajustes||[]).some(a=>a.ym===effYm);
+      if(!yaHecho){const r=sumaIPC(effYm,dep.ajusteMeses,map);if(r){const anterior=alquilerEnMes(dep,shiftYm(effYm,-1));const nuevo=Math.round(anterior*(1+r.pct/100));dep.ajustes=dep.ajustes||[];dep.ajustes.push({ym:effYm,fecha:new Date().toISOString().slice(0,10),pct:r.pct,anterior,nuevo,vals:r.vals});if(cmpYm(effYm,nowYm)>=0)nuevos.push({dep,ym:effYm,pct:r.pct,anterior,nuevo,vals:r.vals,n:dep.ajusteMeses});}}
       k++;}
+    dep.alquiler=alquilerEnMes(dep,ymNow()); // el "actual" es el vigente este mes real
   });
-  if(aplicados.length){save();render();cartelAjustes(aplicados);}
+  if(nuevos.length){save();render();cartelAjustes(nuevos);}
 }
-function msgAumento(dep,aj){const n=dep.ajusteMeses||3;const adj=n===3?'trimestral':n===6?'semestral':n===12?'anual':'periódico';const este=n===3?'este trimestre':n===6?'este semestre':n===12?'este año':'este período';const nombre=dep.inqNombre||dep.inquilino||'';return 'Hola'+(nombre?' '+nombre:'')+', según lo estipulado en el contrato con ajuste '+adj+', '+este+' corresponde un aumento del '+aj.pct.toFixed(1)+'% tomando como fuente la inflación publicada por el INDEC, quedando el alquiler en '+money(aj.nuevo)+'. ¡Muchas gracias!'+firmaOrg();}
+function msgAumento(dep,aj){const n=dep.ajusteMeses||3;const periodo=n===3?'trimestral':n===6?'semestral':n===12?'anual':'periódico';const vars={inquilino:dep.inqNombre||dep.inquilino||'',depto:dep.nombre,periodo,ipc:aj.pct.toFixed(1),nuevo:money(aj.nuevo),anterior:money(aj.anterior),desde:aj.ym?ymLabel(aj.ym):'',firma:firmaOrg()};return fillTpl(tpl('aumento'),vars);}
 function cartelAjustes(list){
   const cards=list.map(a=>{
     const filas=(a.vals||[]).map(x=>`<div class="liq-line"><span>Inflación ${ymLabel(x.ym)}</span><span>${x.val.toFixed(1)}%</span></div>`).join('');
-    const wa=a.dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none;margin-top:8px" href="https://wa.me/${digits(a.dep.telInquilino)}?text=${encodeURIComponent(msgAumento(a.dep,{pct:a.pct,nuevo:a.nuevo}))}" target="_blank" rel="noopener">💬 Informar al inquilino</a>`:'<div class="sub" style="text-align:center;margin-top:8px">Cargá el WhatsApp del inquilino para informarle.</div>';
+    const wa=a.dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none;margin-top:8px" href="https://wa.me/${digits(a.dep.telInquilino)}?text=${encodeURIComponent(msgAumento(a.dep,{pct:a.pct,nuevo:a.nuevo,ym:a.ym}))}" target="_blank" rel="noopener">💬 Informar al inquilino</a>`:'<div class="sub" style="text-align:center;margin-top:8px">Cargá el WhatsApp del inquilino para informarle.</div>';
     return `<div class="card" style="box-shadow:none;border:1px solid var(--line)"><div class="card-name">${esc(a.dep.nombre)}</div>
+      <div class="sub" style="margin-top:2px">Rige a partir de ${ymLabel(a.ym)}</div>
       <div class="liq-line tot" style="margin-top:6px"><span>Aumento ${a.pct.toFixed(1)}%</span><span class="pos">${money(a.anterior)} → ${money(a.nuevo)}</span></div>
       <details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px;color:var(--green);font-weight:700">Ver cálculo (inflación mes a mes)</summary><div style="margin-top:8px">${filas}<div class="liq-line tot"><span>Suma (${a.n} meses)</span><span class="pos">${a.pct.toFixed(1)}%</span></div></div></details>
       ${wa}</div>`;
   }).join('');
-  openSheet(`<div style="text-align:center"><div style="font-size:40px">📈</div><h3 style="margin-top:6px">Se aplicó el ajuste por IPC</h3><p class="hint">${list.length} ${list.length===1?'departamento actualizado':'departamentos actualizados'}.</p></div>${cards}<button class="btn btn-ghost" style="margin-top:10px" onclick="closeSheet()">Listo</button>`);
+  openSheet(`<div style="text-align:center"><div style="font-size:40px">📈</div><h3 style="margin-top:6px">Aumento por IPC</h3><p class="hint">${list.length} ${list.length===1?'departamento con aumento':'departamentos con aumento'}. Avisale al inquilino.</p></div>${cards}<button class="btn btn-ghost" style="margin-top:10px" onclick="closeSheet()">Listo</button>`);
 }
 async function ensureIPC(){try{await fetchIPC();}catch(e){}autoAjustes();}
 /* Popup INFORMATIVO de un aumento ya aplicado */
@@ -882,7 +896,7 @@ function openAjusteInfo(depId,ajYm){
   const n=dep.ajusteMeses||3;const nominal=aj.nuevo-aj.anterior;
   const filas=(aj.vals||[]).map(x=>`<div class="liq-line"><span>Inflación ${ymLabel(x.ym)}</span><span>${x.val.toFixed(1)}%</span></div>`).join('');
   const wa=dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(msgAumento(dep,aj))}" target="_blank" rel="noopener">💬 Informar al inquilino</a>`:`<div class="sub" style="text-align:center">Cargá el WhatsApp del inquilino para poder informarle.</div>`;
-  openSheet(`<div style="text-align:center"><div style="font-size:38px">📈</div><h3 style="margin-top:6px">Aumento por IPC</h3><p class="hint">${esc(dep.nombre)} · ${ymLabel(aj.ym)}</p></div>
+  openSheet(`<div style="text-align:center"><div style="font-size:38px">📈</div><h3 style="margin-top:6px">Aumento por IPC</h3><p class="hint">${esc(dep.nombre)} · rige a partir de ${ymLabel(aj.ym)}</p></div>
     <div class="card" style="box-shadow:none;border:1px solid var(--line)">
       ${filas}
       <div class="liq-line tot"><span>Suma (${n} meses)</span><span class="pos">${aj.pct.toFixed(1)}%</span></div>
@@ -944,6 +958,7 @@ function openSettings(){
     <div class="settings-item"><div><div class="t">Tu perfil</div><div class="d">${org.nombre?esc(org.nombre):'Sin nombre'}${org.tel?' · '+esc(org.tel):''}</div></div><button class="btn btn-ghost btn-sm" onclick="editOrganizador()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Ver tutorial</div><div class="d">Repasá cómo funciona el panel</div></div><button class="btn btn-ghost btn-sm" onclick="startTour()">Ver</button></div>
     <div class="settings-item"><div><div class="t">Cobranzas</div><div class="d">Recordar a los ${cob.diasRecordar} · reclamar a garantía a los ${cob.diasReclamar} días hábiles (desde el 1º)</div></div><button class="btn btn-ghost btn-sm" onclick="editCobranza()">Editar</button></div>
+    <div class="settings-item"><div><div class="t">Mensajes</div><div class="d">Personalizá los textos automáticos de WhatsApp</div></div><button class="btn btn-ghost btn-sm" onclick="editMensajes()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Descargar copia</div><div class="d">Archivo con todos tus datos</div></div><button class="btn btn-ghost btn-sm" onclick="exportData()">Descargar</button></div>
     <div class="settings-item"><div><div class="t">Restaurar copia</div><div class="d">Cargar un archivo guardado</div></div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">Elegir</button></div>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
@@ -976,6 +991,14 @@ let toastT;function toast(m){const t=document.getElementById('toast');t.textCont
 
 /* ===== Organizadora, bienvenida y tutorial ===== */
 function firmaOrg(){const o=state.config&&state.config.organizador;return o&&o.nombre?'\n\n— '+o.nombre:'';}
+const TPL_DEFAULT={
+  recordatorio:'Hola {inquilino}! Te recuerdo que tenés pendiente el pago de {items} de {mes} del depto {depto}. ¡Gracias!{firma}',
+  critico:'Hola {inquilino}! El pago de {items} de {mes} del depto {depto} está muy atrasado. Te pido que lo regularices a la brevedad para no tener que iniciar el reclamo a la garantía.{firma}',
+  aumento:'Hola {inquilino}, según lo estipulado en el contrato con ajuste {periodo}, corresponde un aumento del {ipc}% tomando como fuente la inflación publicada por el INDEC, quedando el alquiler en {nuevo} a partir de {desde}. ¡Muchas gracias!{firma}',
+  garantia:'Hola {garantia}! Les informo un atraso de pago en un depto con garantía de caución. Depto: {depto}. Inquilino: {inquilino}. Adeuda: {items} de {mes}. Por favor avancen con el procedimiento correspondiente. Gracias.{firma}'
+};
+function tpl(key){const p=(state.config&&state.config.plantillas)||{};return (p[key]!=null&&p[key]!=='')?p[key]:TPL_DEFAULT[key];}
+function fillTpl(str,vars){return String(str).replace(/\{(\w+)\}/g,(m,k)=>vars[k]!=null?vars[k]:'');}
 function cmpYm(a,b){return a<b?-1:a>b?1:0;}
 const PILL={ok:['Al día','pill-ok'],proximo:['Por pagar','pill-neutral'],pendiente:['Pendiente','pill-warn'],recordar:['Atrasado','pill-warn'],critico:['Reclamar','pill-debt']};
 function habilesTranscurridos(){const now=new Date();const y=now.getFullYear(),m=now.getMonth();let c=0;for(let d=1;d<=now.getDate();d++){const wd=new Date(y,m,d).getDay();if(wd!==0&&wd!==6)c++;}return c;}
@@ -994,15 +1017,12 @@ function cobranza(dep){
 }
 function itemsAdeuda(dep){const p=pagos(dep.id);const f=[];if(!p.alq)f.push('alquiler');if(dep.expensas&&!p.exp)f.push('expensas');if(dep.servicios&&!p.ser)f.push('servicios');if(f.length<=1)return f[0]||'alquiler';return f.slice(0,-1).join(', ')+' y '+f[f.length-1];}
 function reminderText(dep,nivel){
-  const items=itemsAdeuda(dep);const saludo='Hola'+(dep.inquilino?' '+dep.inquilino:'')+'!';const mes=ymLabel(ym);
-  const cuerpo=(nivel==='critico')
-    ? ' El pago de '+items+' de '+mes+' del depto '+dep.nombre+' está muy atrasado. Te pido que lo regularices a la brevedad para no tener que iniciar el reclamo a la garantía.'
-    : ' Te recuerdo que tenés pendiente el pago de '+items+' de '+mes+' del depto '+dep.nombre+'. ¡Gracias!';
-  return saludo+cuerpo+firmaOrg();
+  const vars={inquilino:dep.inqNombre||dep.inquilino||'',depto:dep.nombre,mes:ymLabel(ym),items:itemsAdeuda(dep),alquiler:money(alquilerEnMes(dep)),firma:firmaOrg()};
+  return fillTpl(tpl(nivel==='critico'?'critico':'recordatorio'),vars);
 }
 function garantiaText(dep){
-  const items=itemsAdeuda(dep);const emp=dep.garantiaEmpresa||'';
-  return 'Hola'+(emp?' '+emp:'')+'! Les informo un atraso de pago en un depto con garantía de caución. Depto: '+dep.nombre+'. Inquilino: '+(dep.inquilino||'—')+'. Adeuda: '+items+' de '+ymLabel(ym)+'. Por favor avancen con el procedimiento correspondiente. Gracias.'+firmaOrg();
+  const vars={garantia:dep.garantiaEmpresa||'',depto:dep.nombre,inquilino:dep.inqNombre||dep.inquilino||'—',mes:ymLabel(ym),items:itemsAdeuda(dep),firma:firmaOrg()};
+  return fillTpl(tpl('garantia'),vars);
 }
 function hideGate(){const g=document.getElementById('gate');g.classList.remove('show');g.innerHTML='';}
 
@@ -1024,6 +1044,40 @@ function editCobranza(){const c=(state.config&&state.config.cobranza)||{diasReco
     <div class="sheet-actions"><button class="btn btn-ghost" onclick="openSettings()">Volver</button><button class="btn btn-primary" onclick="saveCobranza()">Guardar</button></div>`);
 }
 function saveCobranza(){const rec=parseInt(document.getElementById('cb_rec').value),rel=parseInt(document.getElementById('cb_rel').value);state.config.cobranza={diasRecordar:isNaN(rec)?5:rec,diasReclamar:isNaN(rel)?10:rel};save();openSettings();render();toast('Cobranzas actualizadas');}
+const TPL_META={
+  recordatorio:{titulo:'Recordatorio de pago',ph:['inquilino','depto','mes','items','alquiler','firma']},
+  critico:{titulo:'Reclamo (atrasado)',ph:['inquilino','depto','mes','items','alquiler','firma']},
+  aumento:{titulo:'Aviso de aumento por IPC',ph:['inquilino','depto','periodo','ipc','nuevo','anterior','desde','firma']},
+  garantia:{titulo:'Aviso a la garantía',ph:['garantia','depto','inquilino','mes','items','firma']}
+};
+const PH_DESC={inquilino:'nombre del inquilino',depto:'dirección del depto',mes:'mes',items:'lo que adeuda',alquiler:'alquiler actual',firma:'tu firma',periodo:'trimestral/…',ipc:'% de aumento',nuevo:'alquiler nuevo',anterior:'alquiler anterior',desde:'mes en que rige',garantia:'empresa de garantía'};
+function editMensajes(){
+  const items=Object.keys(TPL_META).map(k=>`<div class="settings-item"><div><div class="t">${TPL_META[k].titulo}</div><div class="d">${(state.config&&state.config.plantillas&&state.config.plantillas[k])?'Personalizado':'Por defecto'}</div></div><button class="btn btn-ghost btn-sm" onclick="editPlantilla('${k}')">Editar</button></div>`).join('');
+  openSheet(`<h3>Mensajes automáticos</h3><p class="hint">Editá el texto genérico. Lo que va entre { } se completa solo con los datos de cada depto.</p>${items}<button class="btn btn-ghost" style="margin-top:8px" onclick="openSettings()">Volver</button>`);
+}
+function editPlantilla(key){
+  const meta=TPL_META[key];const val=tpl(key);
+  const chips=meta.ph.map(p=>`<button type="button" class="ph-chip" onclick="insertPh('tpl_area','{${p}}')">{${p}} <span>${PH_DESC[p]||''}</span></button>`).join('');
+  openSheet(`<h3>${meta.titulo}</h3>
+    <p class="hint">Tocá un dato para insertarlo donde tengas el cursor. La app lo reemplaza por el valor real al enviar.</p>
+    <div class="field"><textarea id="tpl_area" rows="6">${esc(val)}</textarea></div>
+    <div class="ph-list">${chips}</div>
+    <div class="tpl-preview" id="tpl_prev"></div>
+    <div class="sheet-actions" style="margin-top:12px">
+      <button class="btn btn-danger btn-sm" onclick="resetPlantilla('${key}')">Restaurar</button>
+      <button class="btn btn-ghost btn-sm" onclick="editMensajes()">Volver</button>
+      <button class="btn btn-primary btn-sm" onclick="savePlantilla('${key}')">Guardar</button></div>`);
+  const area=document.getElementById('tpl_area');
+  const upd=()=>{document.getElementById('tpl_prev').textContent='Vista previa: '+previewTpl(key,area.value);};
+  area.addEventListener('input',upd);upd();
+}
+function previewTpl(key,str){
+  const demo={inquilino:'Juan Pérez',depto:'Av. Corrientes 1234, Piso 4 Depto B',mes:'agosto 2026',items:'alquiler y expensas',alquiler:'$500.000',periodo:'trimestral',ipc:'6.0',nuevo:'$530.000',anterior:'$500.000',desde:'agosto 2026',garantia:'Finaer',firma:(state.config&&state.config.organizador&&state.config.organizador.nombre)?('\n\n— '+state.config.organizador.nombre):''};
+  return fillTpl(str,demo);
+}
+function insertPh(areaId,text){const a=document.getElementById(areaId);if(!a)return;const s=a.selectionStart||a.value.length,e=a.selectionEnd||a.value.length;a.value=a.value.slice(0,s)+text+a.value.slice(e);a.focus();a.selectionStart=a.selectionEnd=s+text.length;a.dispatchEvent(new Event('input'));}
+function savePlantilla(key){const v=document.getElementById('tpl_area').value;if(!state.config.plantillas)state.config.plantillas={};state.config.plantillas[key]=v;save();render();editMensajes();toast('Mensaje guardado');}
+function resetPlantilla(key){if(state.config.plantillas)delete state.config.plantillas[key];save();render();editPlantilla(key);toast('Restaurado por defecto');}
 
 let obStep=0, obTourOnly=false;
 function obSteps(){
