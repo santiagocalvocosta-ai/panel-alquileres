@@ -99,6 +99,43 @@
   .status-seg button.on-bad{border-color:var(--red);background:var(--red-soft);color:var(--red)}
 
   .contact{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--wa);background:var(--wa-soft);padding:8px 13px;border-radius:11px;text-decoration:none;margin-top:12px}
+  .contact-amber{color:var(--amber);background:var(--amber-soft)}
+  .contact-red{color:#fff;background:var(--red)}
+  .segrow{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .segrow::-webkit-scrollbar{display:none}
+  .segchip{flex:0 0 auto;font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);white-space:nowrap}
+  .segchip.on{border-color:var(--green);background:var(--green);color:#fff}
+  .chip-info{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--amber);color:#fff;font-size:10px;font-weight:800;cursor:help;vertical-align:middle}
+  .aj-info{margin-top:10px;background:var(--amber-soft);border:1px solid #f0dcae;border-radius:10px;padding:8px 11px;font-size:12px;font-weight:600;color:var(--amber)}
+  .foco-venc{margin:10px 0 2px;font-size:15px;font-weight:800;color:var(--ink)}
+  .dash-hero{background:linear-gradient(150deg,#0f6b4f,#0b5540);color:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:12px}
+  .dash-hero-k{font-size:12.5px;font-weight:600;color:#c8ebdc}
+  .dash-hero-v{font-size:34px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
+  .dash-hero-sub{font-size:12.5px;color:#c8ebdc;margin-top:6px}
+  .dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:4px}
+  @media(min-width:560px){.dash-grid{grid-template-columns:repeat(3,1fr)}}
+  .dstat{background:var(--surface);border-radius:14px;padding:13px;box-shadow:var(--shadow);border-left:3px solid var(--line)}
+  .dstat.ok{border-left-color:var(--green)} .dstat.warn{border-left-color:var(--amber)} .dstat.bad{border-left-color:var(--red)}
+  .dstat-k{font-size:11px;color:var(--muted);font-weight:600}
+  .dstat-v{font-size:20px;font-weight:800;margin-top:3px;letter-spacing:-.01em}
+  .dstat-sub{font-size:11px;color:var(--muted);margin-top:2px}
+  .dash-row{padding:9px 0;border-bottom:1px solid var(--line)}
+  .dash-row:last-child{border-bottom:none}
+  .dash-row-top{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+  .dash-row-name{font-weight:600} .dash-row-val{font-weight:800;color:var(--green);white-space:nowrap}
+  .dash-bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin:6px 0 4px}
+  .dash-bar i{display:block;height:100%;background:var(--green);border-radius:99px}
+  .dash-row-sub{font-size:11.5px;color:var(--muted)}
+  .dash-tip{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:9px;line-height:1.45}
+  .dash-tip b{color:var(--ink)}
+  .pago-fecha{margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:600;cursor:pointer}
+  .pago-fecha b{color:var(--ink)}
+  .edit-link{color:var(--green);font-weight:700;text-decoration:underline;margin-left:4px}
+  .comp-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+  .dash-chart-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:8px}
+  .dash-chart-avg{font-size:11.5px;font-weight:700;color:var(--green)}
+  .chip-due{border-color:#f0c9d0;background:var(--red-soft)}
+  .chip-due .lbl,.chip-due .amt,.chip-due .mk{color:var(--red)}
   .wa-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   .wa-row .contact{margin-top:0}
 
@@ -118,14 +155,17 @@
   .empty .em{font-size:34px;margin-bottom:10px}
   .empty p{font-size:14.5px;margin:0 0 18px}
 
-  nav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(22,33,29,.05)}
-  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;border-radius:12px;color:var(--muted);font-size:11px;font-weight:600}
-  .tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  nav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:8px 4px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(22,33,29,.05)}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border-radius:12px;color:var(--muted);font-size:10px;font-weight:600}
+  .tab svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .tab.active{color:var(--green)}
 
   .sheet-bg{position:fixed;inset:0;background:rgba(20,33,29,.45);z-index:50;display:none;align-items:flex-end;justify-content:center}
   .sheet-bg.open{display:flex}
-  .sheet{background:var(--surface);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:8px 20px calc(24px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto;animation:up .28s cubic-bezier(.2,.8,.2,1)}
+  .sheet{background:var(--surface);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:8px 20px calc(24px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto;overflow-x:hidden;animation:up .28s cubic-bezier(.2,.8,.2,1)}
+  .sheet *{max-width:100%}
+  .sheet-close{position:absolute;top:10px;right:14px;width:34px;height:34px;border-radius:50%;background:var(--line);color:var(--ink);display:grid;place-items:center;font-size:18px;font-weight:700;z-index:2}
+  .sheet{position:relative}
   @media(min-width:640px){.sheet{border-radius:22px;margin-bottom:6vh}}
   @keyframes up{from{transform:translateY(100%)}to{transform:none}}
   .grab{width:40px;height:4px;background:var(--line);border-radius:99px;margin:8px auto 14px}
@@ -202,13 +242,15 @@
   <section class="view" id="view-duenos"></section>
   <section class="view" id="view-alquileres"></section>
   <section class="view" id="view-deptos"></section>
+  <section class="view" id="view-dashboard"></section>
 </main>
 
 <nav>
-  <button class="tab active" data-tab="mes" onclick="go('mes')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>Mes</button>
+  <button class="tab active" data-tab="mes" onclick="go('mes')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>Seguimiento</button>
   <button class="tab" data-tab="duenos" onclick="go('duenos')"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg>Dueños</button>
-  <button class="tab" data-tab="alquileres" onclick="go('alquileres')"><svg viewBox="0 0 24 24"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0"/><path d="m7.5 12.5 3 3L22 5"/></svg>Nuevos</button>
+  <button class="tab" data-tab="alquileres" onclick="go('alquileres')"><svg viewBox="0 0 24 24"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0"/><path d="m7.5 12.5 3 3L22 5"/></svg>Vencimientos</button>
   <button class="tab" data-tab="deptos" onclick="go('deptos')"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg>Deptos</button>
+  <button class="tab" data-tab="dashboard" onclick="go('dashboard')"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>Dashboard</button>
 </nav>
 
 <div class="sheet-bg" id="sheetBg" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
@@ -256,11 +298,41 @@ function esc(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':
 const digits=t=>(t||'').replace(/[^0-9]/g,'');
 function owner(id){return state.duenos.find(d=>d.id===id);}
 function ownerName(id){const o=owner(id);if(!o)return 'Sin dueño';return o.apellido?(o.apellido+(o.nombre?', '+o.nombre:'')):(o.nombre||'Sin nombre');}
-function comision(dep){if(dep.modalidad==='dueno')return 0;return (dep.alquiler||0)*(dep.comisionPct||0)/100;}
+function comision(dep){if(dep.modalidad==='dueno')return 0;return (alquilerEnMes(dep)||0)*(dep.comisionPct||0)/100;}
+/* ¿El depto estaba alquilado durante el mes que se está viendo? */
+function activoEnMes(dep,m){m=m||ym;const ini=ymOf(dep.contratoInicio);if(!ini)return true;if(cmpYm(m,ini)<0)return false;if(dep.contratoFin){const fin=ymOf(dep.contratoFin);if(cmpYm(m,fin)>0)return false;}return true;}
+/* Alquiler vigente en un mes dado (según los ajustes aplicados hasta ese mes) */
+function alquilerEnMes(dep,m){m=m||ym;let rent=dep.alquilerInicial!=null?dep.alquilerInicial:(dep.alquiler||0);const ajs=(dep.ajustes||[]).slice().sort((a,b)=>a.ym<b.ym?-1:1);for(const a of ajs){if(cmpYm(a.ym,m)<=0)rent=a.nuevo;}return rent;}
 function pagos(deptoId){const m=state.pagos[ym]||{};return m[deptoId]||{alq:false,exp:false,ser:false};}
-function setPago(deptoId,k){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};state.pagos[ym][deptoId][k]=!state.pagos[ym][deptoId][k];save();render();}
+function setPago(deptoId,k){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};const cell=state.pagos[ym][deptoId];cell[k]=!cell[k];if(k==='alq'){if(cell.alq){cell.fecha=(ym===ymNow())?new Date().toISOString().slice(0,10):(ym+'-01');}else{delete cell.fecha;}}save();render();}
+function setFechaPago(deptoId,fecha){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};state.pagos[ym][deptoId].fecha=fecha;state.pagos[ym][deptoId].alq=true;save();render();}
+/* Días hábiles (lu-vi) desde el 1º hasta una fecha YYYY-MM-DD dada */
+function habilesHasta(fecha){if(!fecha)return null;const[y,m,d]=fecha.split('-').map(Number);let c=0;for(let dd=1;dd<=d;dd++){const wd=new Date(y,m-1,dd).getDay();if(wd!==0&&wd!==6)c++;}return c;}
+function openFechaPago(depId){const c=(state.pagos[ym]||{})[depId]||{};const f=c.fecha||(ym+'-01');
+  openSheet(`<h3>Fecha de pago</h3><p class="hint">¿Qué día pagó el alquiler de ${ymLabel(ym)}?</p>
+    <div class="field"><label>Fecha</label><input id="fp_fecha" type="date" value="${f}"></div>
+    <div class="sheet-actions"><button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button><button class="btn btn-primary" onclick="(function(){const v=document.getElementById('fp_fecha').value;if(v){setFechaPago('${depId}',v);closeSheet();}})()">Guardar</button></div>`);
+}
+/* Historial de puntualidad del inquilino de un depto (usa solo meses con fecha real) */
+function historialPago(dep){
+  const meses=[];Object.keys(state.pagos).sort().forEach(m=>{const c=(state.pagos[m]||{})[dep.id];if(c&&c.alq&&c.fecha){meses.push({ym:m,hab:habilesHasta(c.fecha)});}});
+  const con=meses.filter(x=>x.hab!=null);
+  const umbral=(state.config&&state.config.cobranza&&state.config.cobranza.diasRecordar)||5;
+  const prom=con.length?con.reduce((a,b)=>a+b.hab,0)/con.length:null;
+  const tarde=con.filter(x=>x.hab>umbral).length;
+  const max=con.length?Math.max(...con.map(x=>x.hab)):null;
+  return {n:con.length,prom,tarde,max,umbral};
+}
+function badgePagador(h){
+  if(!h||h.n===0)return{txt:'Sin historial',cls:'est-ok'};
+  if(h.tarde===0&&h.prom<=3)return{txt:'Puntual',cls:'est-ok'};
+  if(h.tarde<=1&&h.prom<=h.umbral)return{txt:'Normal',cls:'est-warn'};
+  return{txt:'Paga tarde',cls:'est-bad'};
+}
 function estaAlDia(dep){const p=pagos(dep.id);return p.alq&&(!dep.expensas||p.exp)&&(!dep.servicios||p.ser);}
 function ajustePendiente(dep){if(!dep.contratoInicio||!dep.ajusteMeses)return false;const els=monthsBetween(ymOf(dep.contratoInicio),ym);if(els<=0||els%dep.ajusteMeses!==0)return false;return !(dep.ajustes||[]).some(a=>a.ym===ym);}
+/* ¿El mes que se ve tuvo aumento de IPC para este depto? */
+function ajusteDelMes(dep,m){m=m||ym;return (dep.ajustes||[]).find(a=>a.ym===m);}
 
 /* Estado de ocupación / vencimiento (relativo al mes REAL) */
 function ocupacion(dep){
@@ -276,22 +348,23 @@ function ocupacion(dep){
 }
 function pipeline(){return state.deptos.map(d=>({dep:d,oc:ocupacion(d)})).filter(x=>x.oc.urg>0).sort((a,b)=>b.oc.urg-a.oc.urg||((a.oc.ml==null?99:a.oc.ml)-(b.oc.ml==null?99:b.oc.ml)));}
 
-function go(tab){currentTab=tab;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById('view-'+tab).classList.add('active');const titles={mes:'Este mes',duenos:'Liquidación por dueño',alquileres:'Alquileres y vencimientos',deptos:'Departamentos'};document.getElementById('headTitle').textContent=titles[tab];document.getElementById('monthBar').style.display=(tab==='deptos'||tab==='alquileres')?'none':'flex';window.scrollTo(0,0);render();}
+function go(tab){currentTab=tab;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById('view-'+tab).classList.add('active');const titles={mes:'Seguimiento',duenos:'Liquidación por dueño',alquileres:'Alquileres y vencimientos',deptos:'Departamentos',dashboard:'Dashboard'};document.getElementById('headTitle').textContent=titles[tab];document.getElementById('monthBar').style.display=(tab==='deptos'||tab==='alquileres'||tab==='dashboard')?'none':'flex';window.scrollTo(0,0);render();}
 function changeMonth(n){ym=shiftYm(ym,n);render();}
 function goToday(){ym=ymNow();render();toast('Mes actual');}
 
-function render(){document.getElementById('monthLabel').innerHTML=ymLabel(ym);if(currentTab==='mes')renderMes();if(currentTab==='duenos')renderDuenos();if(currentTab==='alquileres')renderAlquileres();if(currentTab==='deptos')renderDeptos();}
+function render(){document.getElementById('monthLabel').innerHTML=ymLabel(ym);if(currentTab==='mes')renderMes();if(currentTab==='duenos')renderDuenos();if(currentTab==='alquileres')renderAlquileres();if(currentTab==='deptos')renderDeptos();if(currentTab==='dashboard')renderDashboard();}
 
 function renderMes(){
   const el=document.getElementById('view-mes');
   if(state.deptos.length===0){el.innerHTML=empty('&#127968;','Todavía no cargaste departamentos.','Agregá el primero desde la pestaña “Deptos”.');return;}
+  const activos=state.deptos.filter(d=>activoEnMes(d));
   let cobrado=0,aLiquidar=0,comTotal=0,alDia=0;
-  state.deptos.forEach(dep=>{
+  activos.forEach(dep=>{
     if(estaAlDia(dep))alDia++;
     const p=pagos(dep.id);
-    if(p.alq&&dep.modalidad!=='dueno'){const c=comision(dep);comTotal+=c;cobrado+=dep.alquiler||0;aLiquidar+=(dep.alquiler||0)-c;}
+    if(p.alq&&dep.modalidad!=='dueno'){const rent=alquilerEnMes(dep);const c=rent*(dep.comisionPct||0)/100;comTotal+=c;cobrado+=rent;aLiquidar+=rent-c;}
   });
-  const pct=Math.round(alDia/state.deptos.length*100);
+  const pct=activos.length?Math.round(alDia/activos.length*100):0;
   let html=`<div class="summary">
     <div class="stat pos"><div class="k">Cobrado</div><div class="v">${money(cobrado)}</div></div>
     <div class="stat"><div class="k">A liquidar</div><div class="v">${money(aLiquidar)}</div></div>
@@ -300,28 +373,34 @@ function renderMes(){
 
   const pipe=pipeline();
   if(pipe.length){html+=`<button class="alert" onclick="go('alquileres')"><span class="txt">⏳ ${pipe.length} ${pipe.length===1?'depto necesita':'deptos necesitan'} atención — vencimientos / disponibles</span><span class="go">›</span></button>`;}
-  let critCount=0;state.deptos.forEach(d=>{if(cobranza(d).nivel==='critico')critCount++;});
+  let critCount=0;activos.forEach(d=>{if(cobranza(d).nivel==='critico')critCount++;});
   if(critCount){html+=`<div class="alert alert-red"><span class="txt">🔴 ${critCount} ${critCount===1?'pago crítico — corresponde reclamar a la garantía':'pagos críticos — corresponde reclamar a la garantía'}</span></div>`;}
 
-  const ownerOpts=state.duenos.map(o=>`<option value="${o.id}" ${mesOwner===o.id?'selected':''}>${esc(o.nombre)}</option>`).join('');
-  html+=`<div class="controls">
-    <input id="mesSearch" placeholder="Buscar depto o inquilino…" value="${esc(mesQuery)}" oninput="onMesSearch(this.value)">
-    <select onchange="onMesOwner(this.value)"><option value="all">Todos los dueños</option>${ownerOpts}</select>
-  </div>
-  <div class="progress"><span>Al día ${alDia}/${state.deptos.length}</span><span class="bar"><i style="width:${pct}%"></i></span><span>${pct}%</span></div>`;
+  // Segmentador de dueños (estética de la página)
+  const chips=[`<button class="segchip ${mesOwner==='all'?'on':''}" onclick="onMesOwner('all')">Todos</button>`]
+    .concat(state.duenos.filter(o=>state.deptos.some(d=>d.duenoId===o.id)).map(o=>`<button class="segchip ${mesOwner===o.id?'on':''}" onclick="onMesOwner('${o.id}')">${esc(ownerName(o.id))}</button>`)).join('');
+  html+=`<div class="controls"><input id="mesSearch" placeholder="Buscar depto o inquilino…" value="${esc(mesQuery)}" oninput="onMesSearch(this.value)"></div>
+  <div class="segrow">${chips}</div>
+  <div class="progress"><span>Al día ${alDia}/${activos.length}</span><span class="bar"><i style="width:${pct}%"></i></span><span>${pct}%</span></div>`;
 
-  let list=state.deptos.filter(dep=>{
+  let list=activos.filter(dep=>{
     if(mesOwner!=='all'&&dep.duenoId!==mesOwner)return false;
     if(mesQuery){const q=mesQuery.toLowerCase();if(!((dep.nombre||'').toLowerCase().includes(q)||(dep.inquilino||'').toLowerCase().includes(q)))return false;}
     return true;
   });
-  if(list.length===0){html+=empty('&#128269;','Sin resultados.','Probá con otro nombre o quitá el filtro.');el.innerHTML=html;return;}
+  if(list.length===0){html+=empty('&#128269;','Sin departamentos alquilados este mes.','Cambiá de mes o de filtro.');el.innerHTML=html;return;}
   const cardHtml=dep=>{
     const p=pagos(dep.id);const cb=cobranza(dep);const[ptxt,pcls]=PILL[cb.nivel]||PILL.pendiente;
     const showWa=['recordar','critico','pendiente'].includes(cb.nivel)&&dep.telInquilino;
-    const wa=showWa?`<a class="contact" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,cb.nivel))}" target="_blank" rel="noopener">${cb.nivel==='critico'?'⚠️ Reclamar al inquilino':'💬 Recordar pago'}</a>`:'';
-    const waGar=(cb.nivel==='critico'&&dep.garantiaTel)?`<a class="contact" style="color:var(--red);background:var(--red-soft)" href="https://wa.me/${digits(dep.garantiaTel)}?text=${encodeURIComponent(garantiaText(dep))}" target="_blank" rel="noopener">🛡️ Avisar a garantía</a>`:'';
-    const garNote=(cb.nivel==='critico')?`<div class="gar-note">🔴 Corresponde reclamar a la garantía${cb.dias?' · '+cb.dias+' días hábiles del mes':''}${dep.garantiaEmpresa?' · '+esc(dep.garantiaEmpresa):''}.</div>`:'';
+    const rojo=cb.nivel==='critico';
+    const wa=showWa?`<a class="contact ${rojo?'contact-red':'contact-amber'}" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,cb.nivel))}" target="_blank" rel="noopener">${rojo?'⚠️ Reclamar al inquilino':'🔔 Recordar pago'}</a>`:'';
+    const waGar=(rojo&&dep.garantiaTel)?`<a class="contact contact-red" href="https://wa.me/${digits(dep.garantiaTel)}?text=${encodeURIComponent(garantiaText(dep))}" target="_blank" rel="noopener">🛡️ Avisar a garantía</a>`:'';
+    const aj=ajusteDelMes(dep);
+    const info=aj?`<span class="chip-info" title="Aumento IPC ${aj.pct.toFixed(1)}% este mes&#10;${(aj.vals||[]).map(v=>ymLabel(v.ym)+': '+v.val.toFixed(1)+'%').join('&#10;')}&#10;${money(aj.anterior)} → ${money(aj.nuevo)}">ⓘ</span>`:'';
+    const rent=alquilerEnMes(dep);
+    const alqChip=`<button class="chip ${p.alq?'paid':''}" onclick="setPago('${dep.id}','alq')"><div class="lbl">Alquiler ${info}</div><div class="amt">${money(rent)}</div><div class="mk">${p.alq?'✓ Pagó':'Pendiente'}</div></button>`;
+    let fechaLine='';
+    if(p.alq){const hab=habilesHasta(p.fecha);const fstr=p.fecha?p.fecha.split('-').reverse().join('/'):'—';const tag=hab!=null?(hab<=3?'<span style="color:var(--green)">a tiempo</span>':hab<=6?'<span style="color:var(--amber)">'+hab+' días háb.</span>':'<span style="color:var(--red)">tarde ('+hab+' días háb.)</span>'):'';fechaLine=`<div class="pago-fecha" onclick="openFechaPago('${dep.id}')">🗓️ Pagó el <b>${fstr}</b>${tag?' · '+tag:''} <span class="edit-link">editar</span></div>`;}
     return `<div class="card">
       <div class="card-top">
         <div><div class="card-name">${esc(dep.nombre)}</div>
@@ -329,16 +408,16 @@ function renderMes(){
         <span class="paid-pill ${pcls}">${ptxt}</span>
       </div>
       <div class="chips">
-        ${chip(dep,'alq','Alquiler',dep.alquiler,p.alq,false,false)}
+        ${alqChip}
         ${chip(dep,'exp','Expensas',null,p.exp,!dep.expensas,true)}
         ${chip(dep,'ser','Servicios',null,p.ser,!dep.servicios,true)}
       </div>
-      ${garNote}
+      ${fechaLine}
+      ${aj?`<div class="aj-info">📈 Este mes aumentó ${aj.pct.toFixed(1)}% por IPC · ${money(aj.anterior)} → ${money(aj.nuevo)}</div>`:''}
       ${(wa||waGar)?`<div class="wa-row">${wa}${waGar}</div>`:''}
       ${ajustePendiente(dep)?`<div class="adj-banner"><span class="txt">&#9201; Toca ajuste por IPC</span><button onclick="openAjuste('${dep.id}')">Aplicar</button></div>`:''}
     </div>`;
   };
-  // Agrupado por dueño
   const grupos={};list.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
   const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
   oidsOrdenados.forEach(oid=>{
@@ -351,18 +430,18 @@ function renderMes(){
 }
 function onMesSearch(v){mesQuery=v;renderMes();const i=document.getElementById('mesSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
 function onMesOwner(v){mesOwner=v;renderMes();}
-function chip(dep,k,lbl,amt,paid,na,noAmount){if(na)return `<div class="chip na"><div class="lbl">${lbl}</div><div class="amt">—</div></div>`;const amtHtml=noAmount?`<div class="amt" style="color:var(--muted);font-size:11px">agua·luz·gas</div>`:`<div class="amt">${money(amt)}</div>`;return `<button class="chip ${paid?'paid':''}" onclick="setPago('${dep.id}','${k}')"><div class="lbl">${lbl}</div>${amtHtml}<div class="mk">${paid?'✓ Pagó':'Pendiente'}</div></button>`;}
+function chip(dep,k,lbl,amt,paid,na,noAmount){if(na)return `<div class="chip na"><div class="lbl">${lbl}</div><div class="amt">—</div></div>`;const amtHtml=noAmount?`<div class="amt" style="color:var(--muted);font-size:11px">${k==='ser'?'agua·luz·gas':'pago/no pago'}</div>`:`<div class="amt">${money(amt)}</div>`;return `<button class="chip ${paid?'paid':(k!=='alq'?'chip-due':'')}" onclick="setPago('${dep.id}','${k}')"><div class="lbl">${lbl}</div>${amtHtml}<div class="mk">${paid?'✓ Pagó':'Pendiente'}</div></button>`;}
 
 function renderDuenos(){
   const el=document.getElementById('view-duenos');
   if(state.duenos.length===0){el.innerHTML=empty('&#128101;','No hay dueños cargados.','Agregalos desde la pestaña “Deptos”.');return;}
   let html='<div class="cards">',any=false;
   state.duenos.forEach(d=>{
-    const deps=state.deptos.filter(x=>x.duenoId===d.id);if(deps.length===0)return;any=true;
+    const deps=state.deptos.filter(x=>x.duenoId===d.id&&activoEnMes(x));if(deps.length===0)return;any=true;
     let cobrado=0,com=0,neto=0;const rows=[];
-    deps.forEach(dep=>{const p=pagos(dep.id),c=comision(dep);let linea;
+    deps.forEach(dep=>{const p=pagos(dep.id);const rent=alquilerEnMes(dep);const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;let linea;
       if(dep.modalidad==='dueno'){linea='administra el dueño';}
-      else if(p.alq){com+=c;cobrado+=dep.alquiler||0;neto+=(dep.alquiler||0)-c;linea=money((dep.alquiler||0)-c);}
+      else if(p.alq){com+=c;cobrado+=rent;neto+=rent-c;linea=money(rent-c);}
       else linea='sin cobrar';
       rows.push(`<div class="mini-row"><span>${esc(dep.nombre)} · ${dep.modalidad==='dueno'?'directo':'vos'}</span><span>${linea}</span></div>`);});
     const debe=neto>=0;
@@ -382,49 +461,36 @@ function renderDuenos(){
 function renderAlquileres(){
   const el=document.getElementById('view-alquileres');
   let html='';
-  // ---- Disponibilidad y vencimientos ----
-  const pipe=pipeline();
-  html+='<h2 class="section" style="margin-top:6px">Disponibilidad y vencimientos</h2>';
-  if(pipe.length===0){
-    html+=`<div class="card" style="text-align:center;color:var(--muted)"><div style="font-size:26px">✅</div><div style="font-size:13.5px;margin-top:6px">Todo alquilado y sin vencimientos cercanos.</div><div style="font-size:12px;margin-top:3px">Cargá el fin de contrato en cada depto para anticiparte.</div></div>`;
-  }else{
-    html+='<div class="cards">';
-    pipe.forEach(({dep,oc})=>{
-      html+=`<div class="card">
-        <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(ownerName(dep.duenoId))}${dep.contratoFin?' · fin '+dep.contratoFin:''}</div></div>
-        <span class="estado-badge ${oc.cls}">${oc.label}</span></div>
-        <div class="status-seg">
-          <button class="${(dep.estado||'alquilado')==='alquilado'?'on-ok':''}" onclick="setEstado('${dep.id}','alquilado')">Alquilado</button>
-          <button class="${dep.estado==='publicado'?'on-warn':''}" onclick="setEstado('${dep.id}','publicado')">Publicado</button>
-          <button class="${dep.estado==='vacio'?'on-bad':''}" onclick="setEstado('${dep.id}','vacio')">Vacío</button>
-        </div>
-        <div class="sheet-actions" style="margin-top:10px">
-          <button class="btn btn-ghost btn-sm" onclick="openDepto('${dep.id}')">Editar contrato</button>
-          <button class="btn btn-primary btn-sm" onclick="openAlquiler('${dep.id}')">Registrar alquiler</button>
-        </div></div>`;
-    });
-    html+='</div>';
-  }
-  // ---- Registro de alquileres nuevos (garantías) ----
-  html+=`<div class="add-fab" style="margin-top:18px"><button class="btn btn-primary" onclick="openAlquiler()">+ Registrar alquiler nuevo</button></div>`;
-  const list=[...state.alquileres].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  if(list.length===0){html+=empty('&#128273;','Sin alquileres nuevos registrados.','Cuando alquiles un depto liberado, registralo acá con la comisión de garantía.');el.innerHTML=html;return;}
-  let totGar=0,pend=0;list.forEach(a=>{totGar+=a.garantia||0;if(!a.cobrada)pend+=a.garantia||0;});
-  html+=`<div class="summary" style="margin-top:12px">
-    <div class="stat pos"><div class="k">Garantías (total)</div><div class="v">${money(totGar)}</div></div>
-    <div class="stat warn"><div class="k">Por cobrar</div><div class="v">${money(pend)}</div></div>
-    <div class="stat"><div class="k">Operaciones</div><div class="v">${list.length}</div></div>
-  </div><h2 class="section">Historial</h2><div class="cards">`;
-  list.forEach(a=>{const dep=state.deptos.find(d=>d.id===a.deptoId);
-    html+=`<div class="card">
-      <div class="card-top"><div><div class="card-name">${esc(dep?dep.nombre:a.deptoNombre||'Depto')}</div><div class="card-sub">${esc(a.inquilino||'—')} · ${a.fecha||''}${a.tipo?' · '+(a.tipo==='nuevo'?'depto nuevo':'renovación'):''}</div></div>
-      <span class="paid-pill ${a.cobrada?'pill-ok':'pill-debt'}">${a.cobrada?'Cobrada':'A cobrar'}</span></div>
-      <div class="liq-line"><span>Alquiler pactado</span><span>${money(a.alquiler)}</span></div>
-      <div class="liq-line"><span>Comisión de garantía</span><span class="pos">${money(a.garantia)}</span></div>
-      <div class="sheet-actions" style="margin-top:12px">
-        <button class="btn btn-ghost btn-sm" onclick="toggleCobrada('${a.id}')">${a.cobrada?'Marcar a cobrar':'Marcar cobrada'}</button>
-        <button class="btn btn-danger btn-sm" onclick="delAlquiler('${a.id}')">Borrar</button></div></div>`;});
-  html+='</div>';
+  const withOc=state.deptos.map(d=>({dep:d,oc:ocupacion(d)}));
+  // Secciones
+  const sinAlquilar=withOc.filter(x=>x.oc.code==='vacio'||x.oc.code==='publicado');
+  const vencenPronto=withOc.filter(x=>x.oc.ml!=null&&x.oc.ml>=0&&x.oc.ml<=3&&x.oc.code!=='vacio'&&x.oc.code!=='publicado').sort((a,b)=>a.oc.ml-b.oc.ml);
+  const usadas=new Set([...sinAlquilar,...vencenPronto].map(x=>x.dep.id));
+  const resto=withOc.filter(x=>!usadas.has(x.dep.id)).sort((a,b)=>{const ma=a.oc.ml==null?999:a.oc.ml,mb=b.oc.ml==null?999:b.oc.ml;return ma-mb;});
+
+  const focoVence=oc=>{if(oc.ml==null)return 'Sin fecha de fin';if(oc.ml<0)return 'Contrato vencido';if(oc.ml===0)return 'Vence este mes';return 'Vence en '+oc.ml+(oc.ml===1?' mes':' meses');};
+  const card=(x,mostrarFoco)=>{const dep=x.dep,oc=x.oc;
+    const h=historialPago(dep);const bp=badgePagador(h);
+    const compLine=((dep.estado||'alquilado')==='alquilado'&&h.n>0)?`<div class="comp-line"><span class="estado-badge ${bp.cls}">${bp.txt}</span> <span style="font-size:12px;color:var(--muted)">paga en ~${Math.round(h.prom)} días háb.${h.tarde?(' · '+h.tarde+(h.tarde===1?' mes':' meses')+' tarde'):''}</span></div>`:'';
+    return `<div class="card">
+      <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(ownerName(dep.duenoId))}${dep.contratoFin?' · fin '+dep.contratoFin:''}</div></div>
+      <span class="estado-badge ${oc.cls}">${oc.label}</span></div>
+      ${mostrarFoco?`<div class="foco-venc">⏳ ${focoVence(oc)}</div>`:''}
+      ${compLine}
+      <div class="status-seg">
+        <button class="${(dep.estado||'alquilado')==='alquilado'?'on-ok':''}" onclick="setEstado('${dep.id}','alquilado')">Alquilado</button>
+        <button class="${dep.estado==='publicado'?'on-warn':''}" onclick="setEstado('${dep.id}','publicado')">Publicado</button>
+        <button class="${dep.estado==='vacio'?'on-bad':''}" onclick="setEstado('${dep.id}','vacio')">Vacío</button></div>
+      <div class="sheet-actions" style="margin-top:10px">
+        <button class="btn btn-ghost btn-sm" onclick="openDepto('${dep.id}')">Editar contrato</button>
+        <button class="btn btn-primary btn-sm" onclick="openAlquiler('${dep.id}')">Registrar alquiler</button></div></div>`;
+  };
+  const seccion=(titulo,arr,foco)=>{if(!arr.length)return '';return `<h2 class="section">${titulo}</h2><div class="cards">${arr.map(x=>card(x,foco)).join('')}</div>`;};
+
+  if(state.deptos.length===0){el.innerHTML=empty('&#128273;','Todavía no cargaste departamentos.','Cargalos en la pestaña “Deptos”.');return;}
+  html+=seccion('🔴 Sin alquilar',sinAlquilar,false);
+  html+=seccion('🟠 Vencen pronto (3 meses)',vencenPronto,true);
+  html+=seccion('🟢 El resto',resto,true);
   el.innerHTML=html;
 }
 function setEstado(id,e){const dep=state.deptos.find(d=>d.id===id);dep.estado=e;save();render();toast(e==='alquilado'?'Marcado alquilado':e==='publicado'?'Marcado publicado':'Marcado vacío');}
@@ -456,10 +522,127 @@ function renderDeptos(){
   el.innerHTML=html;
 }
 
+function renderDashboard(){
+  const el=document.getElementById('view-dashboard');
+  if(state.deptos.length===0){el.innerHTML=empty('&#128202;','Todavía no hay datos.','Cargá departamentos para ver tus métricas.');return;}
+  const now=ymNow();const activos=state.deptos.filter(d=>activoEnMes(d,now));
+  const alquilados=state.deptos.filter(d=>(d.estado||'alquilado')==='alquilado');
+  const publicados=state.deptos.filter(d=>d.estado==='publicado');
+  const vacios=state.deptos.filter(d=>d.estado==='vacio');
+  const gestionados=state.deptos.filter(d=>d.modalidad!=='dueno');
+  const ymAnt=shiftYm(now,-1);
+  // Comisión del mes (potencial y cobrada), masa administrada, morosidad
+  let comMes=0,comCobrada=0,masa=0,pendiente=0,morosos=0;
+  activos.forEach(d=>{
+    const rent=alquilerEnMes(d,now);
+    if(d.modalidad!=='dueno'){const c=rent*(d.comisionPct||0)/100;comMes+=c;masa+=rent;
+      const pg=(state.pagos[now]||{})[d.id]||{};if(pg.alq){comCobrada+=c;}else{pendiente+=rent;}}
+    const alDia=(function(){const pg=(state.pagos[now]||{})[d.id]||{};return pg.alq&&(!d.expensas||pg.exp)&&(!d.servicios||pg.ser);})();
+    if(!alDia)morosos++;
+  });
+  // Ocupación
+  const ocupPct=state.deptos.length?Math.round(alquilados.length/state.deptos.length*100):0;
+  // Comisión promedio ponderada de la cartera
+  const comProm=masa>0?(comMes/masa*100):0;
+  // Vencimientos próximos (<=3 meses)
+  const venc90=state.deptos.filter(d=>{const oc=ocupacion(d);return oc.ml!=null&&oc.ml>=0&&oc.ml<=3&&(d.estado||'alquilado')==='alquilado';});
+  // Comisión histórica ya ganada
+  let comHist=0;state.deptos.forEach(d=>{comHist+=d.comisionPrevia||0;});
+  // Comparación con mes anterior (comisión cobrada)
+  let comCobradaAnt=0;state.deptos.filter(d=>activoEnMes(d,ymAnt)&&d.modalidad!=='dueno').forEach(d=>{const pg=(state.pagos[ymAnt]||{})[d.id]||{};if(pg.alq)comCobradaAnt+=alquilerEnMes(d,ymAnt)*(d.comisionPct||0)/100;});
+  const delta=comCobradaAnt>0?((comCobrada/comCobradaAnt-1)*100):null;
+
+  let html=`<div class="dash-hero">
+    <div class="dash-hero-k">Tu comisión este mes</div>
+    <div class="dash-hero-v">${money(comMes)}</div>
+    <div class="dash-hero-sub">Cobrada: ${money(comCobrada)} · Pendiente: ${money(comMes-comCobrada)}${delta!=null?` · <span style="color:${delta>=0?'#8fe3bf':'#ffd0d8'}">${delta>=0?'▲':'▼'} ${Math.abs(delta).toFixed(0)}% vs mes previo</span>`:''}</div>
+  </div>`;
+
+  // Gráfico de evolución de comisión (últimos 12 meses)
+  const serie=comisionSerie(12);
+  if(serie.some(s=>s.val>0)){
+    const prom=Math.round(serie.reduce((a,b)=>a+b.val,0)/serie.length);
+    html+=`<div class="card" style="padding:16px 14px 10px"><div class="dash-chart-head"><span>Tu comisión, últimos 12 meses</span><span class="dash-chart-avg">prom. ${money(prom)}</span></div>${sparkline(serie)}</div>`;
+  }
+
+  html+=`<div class="dash-grid">
+    ${dstat('Ocupación',ocupPct+'%',alquilados.length+' de '+state.deptos.length+' alquilados',ocupPct>=90?'ok':ocupPct>=70?'warn':'bad')}
+    ${dstat('Sin generar',vacios.length+publicados.length,vacios.length+' vacíos · '+publicados.length+' publicados',(vacios.length+publicados.length)?'warn':'ok')}
+    ${dstat('Morosidad',morosos,morosos?money(pendiente)+' sin cobrar':'todo al día',morosos?'bad':'ok')}
+    ${dstat('Vencen ≤3m',venc90.length,'riesgo de vacancia',venc90.length?'warn':'ok')}
+    ${dstat('Masa administrada',money(masa),'alquileres que gestionás','')}
+    ${dstat('Comisión media',comProm.toFixed(1)+'%','de tu cartera','')}
+  </div>`;
+
+  // Ranking deptos por comisión
+  const rk=gestionados.filter(d=>activoEnMes(d,now)).map(d=>({d,c:alquilerEnMes(d,now)*(d.comisionPct||0)/100})).sort((a,b)=>b.c-a.c);
+  const maxC=rk.length?rk[0].c:1;
+  if(rk.length){
+    html+='<h2 class="section">Deptos que más te generan</h2><div class="card" style="padding:14px">';
+    rk.slice(0,6).forEach(r=>{const w=maxC>0?Math.round(r.c/maxC*100):0;
+      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(r.d.nombre)}</span><span class="dash-row-val">${money(r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${esc(ownerName(r.d.duenoId))} · com. ${r.d.comisionPct||0}% · alq. ${money(alquilerEnMes(r.d,now))}</div></div>`;});
+    html+='</div>';
+  }
+  // Ranking dueños por comisión
+  const porDueno={};gestionados.filter(d=>activoEnMes(d,now)).forEach(d=>{const c=alquilerEnMes(d,now)*(d.comisionPct||0)/100;porDueno[d.duenoId]=(porDueno[d.duenoId]||0)+c;});
+  const rkD=Object.keys(porDueno).map(id=>({id,c:porDueno[id]})).sort((a,b)=>b.c-a.c);
+  const maxD=rkD.length?rkD[0].c:1;
+  if(rkD.length){
+    html+='<h2 class="section">Comisión por dueño</h2><div class="card" style="padding:14px">';
+    rkD.forEach(r=>{const w=maxD>0?Math.round(r.c/maxD*100):0;const n=state.deptos.filter(d=>d.duenoId===r.id&&d.modalidad!=='dueno'&&activoEnMes(d,now)).length;
+      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(ownerName(r.id))}</span><span class="dash-row-val">${money(r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${n} ${n===1?'depto':'deptos'}</div></div>`;});
+    html+='</div>';
+  }
+  // Alertas accionables
+  const tips=[];
+  if(vacios.length)tips.push(`Tenés <b>${vacios.length} ${vacios.length===1?'depto vacío':'deptos vacíos'}</b> sin generar comisión — priorizá publicarlos.`);
+  if(venc90.length)tips.push(`<b>${venc90.length} ${venc90.length===1?'contrato vence':'contratos vencen'}</b> en 3 meses — empezá a renovar o publicar.`);
+  if(morosos)tips.push(`<b>${morosos} ${morosos===1?'depto debe':'deptos deben'}</b> pagos este mes (${money(pendiente)} sin cobrar) — mandá los recordatorios.`);
+  const bajaCom=gestionados.filter(d=>activoEnMes(d,now)&&(d.comisionPct||0)>0&&(d.comisionPct||0)<comProm-2).length;
+  if(bajaCom)tips.push(`<b>${bajaCom} ${bajaCom===1?'depto tiene':'deptos tienen'}</b> comisión por debajo de tu promedio — oportunidad de renegociar.`);
+  if(comHist)tips.push(`Comisión histórica ya ganada en tus contratos: <b>${money(comHist)}</b>.`);
+  if(tips.length){html+='<h2 class="section">Para decidir</h2>'+tips.map(t=>`<div class="dash-tip">💡 ${t}</div>`).join('');}
+
+  // Comportamiento de pago (a quién apurar)
+  const comp=state.deptos.filter(d=>(d.estado||'alquilado')==='alquilado'&&activoEnMes(d,now)).map(d=>({d,h:historialPago(d)})).filter(x=>x.h.n>0).sort((a,b)=>(b.h.prom||0)-(a.h.prom||0));
+  if(comp.length){
+    html+='<h2 class="section">Comportamiento de pago</h2><div class="card" style="padding:14px">';
+    comp.slice(0,8).forEach(x=>{const bp=badgePagador(x.h);
+      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(x.d.inquilino||x.d.nombre)}</span><span class="estado-badge ${bp.cls}">${bp.txt}</span></div><div class="dash-row-sub">${esc(x.d.nombre)} · paga en ~${Math.round(x.h.prom)} días háb.${x.h.tarde?(' · '+x.h.tarde+(x.h.tarde===1?' mes':' meses')+' tarde'):''}${x.h.max!=null?(' · peor: '+x.h.max+' días'):''}</div></div>`;});
+    html+='</div><div class="dash-tip">💡 Ordenados de más lento a más rápido: a los de arriba conviene apurarlos primero. La etiqueta “Paga tarde” es un aviso a la hora de renovar.</div>';
+  }
+
+  el.innerHTML=html;
+}
+function dstat(k,v,sub,tone){return `<div class="dstat ${tone||''}"><div class="dstat-k">${k}</div><div class="dstat-v">${v}</div><div class="dstat-sub">${sub}</div></div>`;}
+/* Comisión efectivamente cobrada por mes (últimos n meses hasta el actual) */
+function comisionSerie(n){
+  const out=[];let m=ymNow();for(let i=0;i<n;i++){out.unshift(m);m=shiftYm(m,-1);}
+  return out.map(mes=>{let c=0;state.deptos.forEach(d=>{if(d.modalidad==='dueno'||!activoEnMes(d,mes))return;const pg=(state.pagos[mes]||{})[d.id]||{};if(pg.alq)c+=alquilerEnMes(d,mes)*(d.comisionPct||0)/100;});return{ym:mes,val:Math.round(c)};});
+}
+function sparkline(serie){
+  if(!serie.length)return '';
+  const W=320,H=110,pad=6;const vals=serie.map(s=>s.val);const max=Math.max(...vals,1);const min=0;
+  const n=serie.length;const bw=(W-pad*2)/n;
+  const x=i=>pad+bw*i+bw*0.15;const bw2=bw*0.7;
+  const y=v=>H-pad-((v-min)/(max-min||1))*(H-pad*2-14);
+  let bars='';serie.forEach((s,i)=>{const bh=Math.max(1,(H-pad-14)-y(s.val));bars+=`<rect x="${x(i).toFixed(1)}" y="${y(s.val).toFixed(1)}" width="${bw2.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${i===n-1?'#0f6b4f':'#9cc9b9'}"><title>${ymLabel(s.ym)}: ${money(s.val)}</title></rect>`;});
+  // etiquetas: primer, medio y último mes
+  const lab=i=>{const[y2,m2]=serie[i].ym.split('-');return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m2-1];};
+  let labels='';[0,Math.floor(n/2),n-1].forEach(i=>{labels+=`<text x="${(x(i)+bw2/2).toFixed(1)}" y="${H-2}" font-size="9" fill="#66756f" text-anchor="middle">${lab(i)}</text>`;});
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block">${bars}${labels}</svg>`;
+}
 function empty(em,t,d){return `<div class="empty"><div class="em">${em}</div><p><strong>${t}</strong><br>${d}</p></div>`;}
 
-function openSheet(html){document.getElementById('sheet').innerHTML='<div class="grab"></div>'+html;document.getElementById('sheetBg').classList.add('open');}
+function openSheet(html){const s=document.getElementById('sheet');s.innerHTML='<div class="grab" id="sheetGrab"></div><button class="sheet-close" onclick="closeSheet()" aria-label="Cerrar">✕</button>'+html;document.getElementById('sheetBg').classList.add('open');s.scrollTop=0;initSheetSwipe(s);}
 function closeSheet(){document.getElementById('sheetBg').classList.remove('open');}
+function initSheetSwipe(s){
+  let y0=null,dy=0;const grab=document.getElementById('sheetGrab');if(!grab)return;
+  const start=e=>{if(s.scrollTop>0)return;y0=(e.touches?e.touches[0].clientY:e.clientY);dy=0;};
+  const move=e=>{if(y0==null)return;const y=(e.touches?e.touches[0].clientY:e.clientY);dy=y-y0;if(dy>0){s.style.transform='translateY('+dy+'px)';}};
+  const end=()=>{if(y0==null)return;s.style.transition='transform .2s';if(dy>90){closeSheet();}s.style.transform='';setTimeout(()=>{s.style.transition='';},220);y0=null;};
+  grab.addEventListener('touchstart',start,{passive:true});grab.addEventListener('touchmove',move,{passive:true});grab.addEventListener('touchend',end);
+}
 
 let flowSel='vos',estSel='alquilado',ipcSel='si';
 function openDepto(id){
@@ -512,7 +695,7 @@ function openDepto(id){
 
     <div class="form-sec">Detalle del contrato</div>
     <div class="row2">
-      <div class="field"><label>Fecha de inicio</label><input id="f_ini" type="date" value="${dep?dep.contratoInicio||'':''}"></div>
+      <div class="field"><label>Fecha de inicio</label><input id="f_ini" type="date" oninput="setFinDefault()" value="${dep?dep.contratoInicio||'':''}"></div>
       <div class="field"><label>Fecha de fin</label><input id="f_fin" type="date" value="${dep?dep.contratoFin||'':''}"></div></div>
     <div class="field"><label>Alquiler pactado <span style="color:var(--muted);font-weight:400">(el del inicio del contrato)</span></label><input id="f_alq" type="number" inputmode="numeric" placeholder="0" value="${dep?(dep.alquilerInicial!=null?dep.alquilerInicial:(dep.alquiler||'')):''}"><div class="sub">Con los ajustes por IPC del medio, la app calcula sola el valor actual.</div></div>
     <div class="field"><label>Administración</label>
@@ -539,6 +722,7 @@ function openDepto(id){
       <button class="btn btn-primary" onclick="saveDepto('${id||''}')">Guardar</button></div>`);
 }
 function pickEstado(v){estSel=v;document.querySelectorAll('#f_est button').forEach(b=>b.classList.remove('on'));document.querySelectorAll('#f_est button')[v==='alquilado'?0:v==='publicado'?1:2].classList.add('on');document.getElementById('inqSection').style.display=v==='alquilado'?'block':'none';}
+function setFinDefault(){const ini=document.getElementById('f_ini').value;const fin=document.getElementById('f_fin');if(!ini||!fin)return;const[y,m,d]=ini.split('-').map(Number);const last=new Date(y+2,m,0).getDate();fin.value=(y+2)+'-'+String(m).padStart(2,'0')+'-'+String(last).padStart(2,'0');}
 function pickFlow(v){flowSel=v;document.querySelectorAll('#f_flow button').forEach((b,i)=>b.classList.toggle('on',(v==='vos')?i===0:i===1));document.getElementById('comWrap').style.display=v==='dueno'?'none':'block';}
 function pickIPC(v){ipcSel=v;document.querySelectorAll('#f_ipc button').forEach((b,i)=>b.classList.toggle('on',(v==='si')?i===0:i===1));document.getElementById('ipcFreqWrap').style.display=v==='si'?'block':'none';}
 function toggleGarTel(){const emp=document.getElementById('f_garemp').value.trim();document.getElementById('garTelWrap').style.display=emp?'block':'none';}
