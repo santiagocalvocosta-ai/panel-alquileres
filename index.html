@@ -399,17 +399,17 @@ function renderMes(){
   const el=document.getElementById('view-mes');
   if(state.deptos.length===0){el.innerHTML=empty('&#127968;','Todavía no cargaste departamentos.','Agregá el primero desde la pestaña “Deptos”.');return;}
   const activos=state.deptos.filter(d=>activoEnMes(d));
-  let cobrado=0,aLiquidar=0,comTotal=0,alDia=0;
+  const cobrado={ARS:0,USD:0},aLiquidar={ARS:0,USD:0},comTotal={ARS:0,USD:0};let alDia=0;
   activos.forEach(dep=>{
     if(estaAlDia(dep))alDia++;
     const p=pagos(dep.id);
-    if(p.alq&&dep.modalidad!=='dueno'){const rent=alquilerEnMes(dep);const c=rent*(dep.comisionPct||0)/100;comTotal+=c;cobrado+=rent;aLiquidar+=rent-c;}
+    if(p.alq&&dep.modalidad!=='dueno'){const rent=alquilerEnMes(dep);const cur=dep.moneda||'ARS';const c=rent*(dep.comisionPct||0)/100;comTotal[cur]+=c;cobrado[cur]+=rent;aLiquidar[cur]+=rent-c;}
   });
   const pct=activos.length?Math.round(alDia/activos.length*100):0;
   let html=`<div class="summary">
-    <div class="stat pos"><div class="k">Cobrado</div><div class="v">${money(cobrado)}</div></div>
-    <div class="stat"><div class="k">A liquidar</div><div class="v">${money(aLiquidar)}</div></div>
-    <div class="stat warn"><div class="k">Comisión</div><div class="v">${money(comTotal)}</div></div>
+    <div class="stat pos"><div class="k">Cobrado</div><div class="v" style="font-size:15px">${dualStr(cobrado)}</div></div>
+    <div class="stat"><div class="k">A liquidar</div><div class="v" style="font-size:15px">${dualStr(aLiquidar)}</div></div>
+    <div class="stat warn"><div class="k">Comisión</div><div class="v" style="font-size:15px">${dualStr(comTotal)}</div></div>
   </div>`;
 
   const pipe=pipeline();
@@ -491,19 +491,19 @@ function renderDuenos(){
   let html='<div class="cards">',any=false;
   state.duenos.forEach(d=>{
     const deps=state.deptos.filter(x=>x.duenoId===d.id&&activoEnMes(x));if(deps.length===0)return;any=true;
-    let cobrado=0,com=0,neto=0;const rows=[];
-    deps.forEach(dep=>{const p=pagos(dep.id);const rent=alquilerEnMes(dep);const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;let linea;
+    const cobrado={ARS:0,USD:0},com={ARS:0,USD:0},neto={ARS:0,USD:0};const rows=[];
+    deps.forEach(dep=>{const p=pagos(dep.id);const rent=alquilerEnMes(dep);const cur=dep.moneda||'ARS';const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;let linea;
       if(dep.modalidad==='dueno'){linea='administra el dueño';}
-      else if(p.alq){com+=c;cobrado+=rent;neto+=rent-c;linea=money(rent-c);}
+      else if(p.alq){com[cur]+=c;cobrado[cur]+=rent;neto[cur]+=rent-c;linea=curMoney(dep,rent-c);}
       else linea='sin cobrar';
       rows.push(`<div class="mini-row"><span>${esc(dep.nombre)} · ${dep.modalidad==='dueno'?'directo':'vos'}</span><span>${linea}</span></div>`);});
-    const debe=neto>=0;
+    const netoTotal=(neto.ARS+neto.USD);const debe=netoTotal>=0;
     const wa=d.telefono?`<a class="contact" href="https://wa.me/${digits(d.telefono)}?text=${encodeURIComponent('Hola'+(d.nombre?' '+d.nombre:'')+'!')}" target="_blank" rel="noopener">💬 WhatsApp</a>`:'';
     html+=`<div class="card">
       <div class="card-top"><div class="card-name">${esc(d.nombre)}</div><span class="owner-tag">${deps.length} ${deps.length===1?'depto':'deptos'}</span></div>
-      <div class="liq-line"><span>Alquileres cobrados (pasan por vos)</span><span>${money(cobrado)}</span></div>
-      <div class="liq-line"><span>Tu comisión</span><span class="pos">${money(com)}</span></div>
-      <div class="liq-line tot"><span>${debe?'Le tenés que liquidar':'El dueño te debe'}</span><span class="${debe?'':'neg'}">${money(Math.abs(neto))}</span></div>
+      <div class="liq-line"><span>Alquileres cobrados (pasan por vos)</span><span>${dualStr(cobrado)}</span></div>
+      <div class="liq-line"><span>Tu comisión</span><span class="pos">${dualStr(com)}</span></div>
+      <div class="liq-line tot"><span>Le tenés que liquidar</span><span>${dualStr({ARS:Math.max(0,neto.ARS),USD:Math.max(0,neto.USD)})}</span></div>
       <div class="mini-list">${rows.join('')}</div>
       ${wa}</div>`;
   });
@@ -567,7 +567,7 @@ function renderDeptos(){
         <span class="estado-badge ${oc.cls}">${oc.label}</span></div>
         <div class="liq-line"><span>Alquiler</span><span>${curMoney(dep,dep.alquiler)}${dep.moneda==='USD'?' USD':''}${dep.modalidad==='dueno'?'':' · com. '+(dep.comisionPct||0)+'%'}</span></div>
         ${(dep.alquilerInicial!=null&&dep.alquilerInicial!==dep.alquiler)?`<div class="liq-line"><span>Pactado inicial</span><span style="color:var(--muted)">${curMoney(dep,dep.alquilerInicial)} · ${(dep.ajustes||[]).length} ajustes</span></div>`:''}
-        ${dep.comisionPrevia?`<div class="liq-line"><span>Comisión ya ganada</span><span class="pos">${money(dep.comisionPrevia)}</span></div>`:''}
+        ${dep.comisionPrevia?`<div class="liq-line"><span>Comisión ya ganada</span><span class="pos">${curMoney(dep,dep.comisionPrevia)}</span></div>`:''}
         <div class="liq-line"><span>Administración</span><span>${dep.modalidad==='dueno'?'directo el dueño':'lo administrás vos'}</span></div>
         <div class="liq-line"><span>Contrato</span><span>${dep.contratoInicio||'—'} → ${dep.contratoFin||'—'}</span></div>
         <div class="liq-line"><span>Ajuste IPC</span><span>${(dep.ajusteMeses&&dep.ajusteMeses>0)?('cada '+dep.ajusteMeses+' meses'):'sin ajuste'}</span></div>
@@ -594,78 +594,86 @@ function renderDashboard(){
   const ymAnt=shiftYm(now,-1);
   // Filtro de dueños (desplegable)
   const segHtml=ownerSelectHtml(dashOwner,'onDashOwner');
-  // Comisión del mes (potencial y cobrada), masa administrada, morosidad
-  let comMes=0,comCobrada=0,masa=0,pendiente=0,morosos=0;
+  const monOf=d=>d.moneda||'ARS';
+  // Comisión del mes (potencial y cobrada), masa administrada, morosidad — separadas por moneda
+  const comMes={ARS:0,USD:0},comCobrada={ARS:0,USD:0},masa={ARS:0,USD:0},pendiente={ARS:0,USD:0};let morosos=0;
   activos.forEach(d=>{
-    const rent=alquilerEnMes(d,now);
-    if(d.modalidad!=='dueno'){const c=rent*(d.comisionPct||0)/100;comMes+=c;masa+=rent;
-      const pg=(state.pagos[now]||{})[d.id]||{};if(pg.alq){comCobrada+=c;}else{pendiente+=rent;}}
-    const alDia=(function(){const pg=(state.pagos[now]||{})[d.id]||{};return pg.alq&&(!d.expensas||pg.exp)&&(!d.servicios||pg.ser);})();
+    const rent=alquilerEnMes(d,now);const cur=monOf(d);
+    if(d.modalidad!=='dueno'){const c=rent*(d.comisionPct||0)/100;comMes[cur]+=c;masa[cur]+=rent;
+      const pg=(state.pagos[now]||{})[d.id]||{};if(pg.alq){comCobrada[cur]+=c;}else{pendiente[cur]+=rent;}}
+    const alDia=(function(){const pg=(state.pagos[now]||{})[d.id]||{};return pg.alq&&(!d.expensas||pg.exp)&&servPagos(d).allPaid;})();
     if(!alDia)morosos++;
   });
+  const curs=[...new Set(gestionados.filter(d=>activoEnMes(d,now)).map(monOf))];if(!curs.length)curs.push('ARS');
+  const single=curs.length<=1;
   // Ocupación (sobre los deptos del filtro actual)
   const ocupPct=base.length?Math.round(alquilados.length/base.length*100):0;
-  // Comisión promedio ponderada de la cartera
-  const comProm=masa>0?(comMes/masa*100):0;
+  // Comisión promedio (sin ponderar, para no mezclar monedas)
+  const gAct=gestionados.filter(d=>activoEnMes(d,now)&&(d.comisionPct||0)>0);
+  const comProm=gAct.length?gAct.reduce((a,b)=>a+(b.comisionPct||0),0)/gAct.length:0;
   // Vencimientos próximos (<=3 meses)
   const venc90=base.filter(d=>{const oc=ocupacion(d);return oc.ml!=null&&oc.ml>=0&&oc.ml<=3&&(d.estado||'alquilado')==='alquilado';});
-  // Comisión histórica ya ganada
-  let comHist=0;base.forEach(d=>{comHist+=d.comisionPrevia||0;});
-  // Comparación con mes anterior (comisión cobrada)
-  let comCobradaAnt=0;base.filter(d=>activoEnMes(d,ymAnt)&&d.modalidad!=='dueno').forEach(d=>{const pg=(state.pagos[ymAnt]||{})[d.id]||{};if(pg.alq)comCobradaAnt+=alquilerEnMes(d,ymAnt)*(d.comisionPct||0)/100;});
-  const delta=comCobradaAnt>0?((comCobrada/comCobradaAnt-1)*100):null;
+  // Comisión histórica ya ganada — por moneda
+  const comHist={ARS:0,USD:0};base.forEach(d=>{if(d.comisionPrevia)comHist[monOf(d)]+=d.comisionPrevia;});
+  // Delta vs mes previo (solo si hay una sola moneda, si no no es comparable)
+  let delta=null;
+  if(single){const cur=curs[0];let ant=0;base.filter(d=>activoEnMes(d,ymAnt)&&d.modalidad!=='dueno'&&monOf(d)===cur).forEach(d=>{const pg=(state.pagos[ymAnt]||{})[d.id]||{};if(pg.alq)ant+=alquilerEnMes(d,ymAnt)*(d.comisionPct||0)/100;});if(ant>0)delta=((comCobrada[cur]/ant-1)*100);}
 
+  const heroMoney=obj=>{const a=obj.ARS?fmtMon('ARS',obj.ARS):'';const u=obj.USD?fmtMon('USD',obj.USD):'';if(a&&u)return a+' <span style="font-size:19px;opacity:.9">+ '+u+'</span>';return a||u||'$0';};
   let html=segHtml+`<div class="dash-hero">
     <div class="dash-hero-k">Tu comisión este mes</div>
-    <div class="dash-hero-v">${money(comMes)}</div>
-    <div class="dash-hero-sub">Cobrada: ${money(comCobrada)} · Pendiente: ${money(comMes-comCobrada)}${delta!=null?` · <span style="color:${delta>=0?'#8fe3bf':'#ffd0d8'}">${delta>=0?'▲':'▼'} ${Math.abs(delta).toFixed(0)}% vs mes previo</span>`:''}</div>
+    <div class="dash-hero-v">${heroMoney(comMes)}</div>
+    <div class="dash-hero-sub">Cobrada: ${dualStr(comCobrada)} · Pendiente: ${dualStr({ARS:comMes.ARS-comCobrada.ARS,USD:comMes.USD-comCobrada.USD})}${delta!=null?` · <span style="color:${delta>=0?'#8fe3bf':'#ffd0d8'}">${delta>=0?'▲':'▼'} ${Math.abs(delta).toFixed(0)}% vs mes previo</span>`:''}</div>
+    ${!single?'<div class="dash-hero-sub" style="margin-top:4px;opacity:.8">Pesos y dólares se muestran por separado para que sean comparables.</div>':''}
   </div>`;
 
-  // Gráfico de evolución de comisión (últimos 12 meses)
-  const serie=comisionSerie(12);
-  if(serie.some(s=>s.val>0)){
-    const prom=Math.round(serie.reduce((a,b)=>a+b.val,0)/serie.length);
-    html+=`<div class="card" style="padding:16px 14px 10px"><div class="dash-chart-head"><span>Tu comisión, últimos 12 meses</span><span class="dash-chart-avg">prom. ${money(prom)}</span></div>${sparkline(serie)}</div>`;
-  }
+  // Gráfico de evolución de comisión (últimos 12 meses) — uno por moneda
+  curs.forEach(cur=>{
+    const serie=comisionSerie(12,cur);
+    if(serie.some(s=>s.val>0)){
+      const prom=Math.round(serie.reduce((a,b)=>a+b.val,0)/serie.length);
+      html+=`<div class="card" style="padding:16px 14px 10px"><div class="dash-chart-head"><span>Comisión ${cur==='USD'?'en dólares':'en pesos'}, últimos 12 meses</span><span class="dash-chart-avg">prom. ${fmtMon(cur,prom)}</span></div>${sparkline(serie,cur)}</div>`;
+    }
+  });
 
   html+=`<div class="dash-grid">
     ${dstat('Ocupación',ocupPct+'%',alquilados.length+' de '+base.length+' alquilados',ocupPct>=90?'ok':ocupPct>=70?'warn':'bad')}
     ${dstat('Vacíos',vacios.length,vacios.length?publicando.length+' publicándose':'ninguno',vacios.length?'warn':'ok')}
-    ${dstat('Morosidad',morosos,morosos?money(pendiente)+' sin cobrar':'todo al día',morosos?'bad':'ok')}
+    ${dstat('Morosidad',morosos,morosos?dualStr(pendiente)+' sin cobrar':'todo al día',morosos?'bad':'ok')}
     ${dstat('Vencen ≤3m',venc90.length,'riesgo de vacancia',venc90.length?'warn':'ok')}
-    ${dstat('Masa administrada',money(masa),'alquileres que gestionás','')}
+    ${dstat('Masa administrada',heroMoney(masa),'alquileres que gestionás','')}
     ${dstat('Comisión media',comProm.toFixed(1)+'%','de tu cartera','')}
   </div>`;
 
-  // Ranking deptos por comisión
-  const rk=gestionados.filter(d=>activoEnMes(d,now)).map(d=>({d,c:alquilerEnMes(d,now)*(d.comisionPct||0)/100})).sort((a,b)=>b.c-a.c);
-  const maxC=rk.length?rk[0].c:1;
-  if(rk.length){
-    html+='<h2 class="section">Deptos que más te generan</h2><div class="card" style="padding:14px">';
+  // Ranking deptos por comisión (bloque por moneda)
+  curs.forEach(cur=>{
+    const rk=gestionados.filter(d=>activoEnMes(d,now)&&monOf(d)===cur).map(d=>({d,c:alquilerEnMes(d,now)*(d.comisionPct||0)/100})).sort((a,b)=>b.c-a.c);
+    if(!rk.length||rk[0].c<=0)return;const maxC=rk[0].c;
+    html+='<h2 class="section">Deptos que más te generan'+(single?'':' · '+(cur==='USD'?'dólares':'pesos'))+'</h2><div class="card" style="padding:14px">';
     rk.slice(0,6).forEach(r=>{const w=maxC>0?Math.round(r.c/maxC*100):0;
-      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(r.d.nombre)}</span><span class="dash-row-val">${money(r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${esc(ownerName(r.d.duenoId))} · com. ${r.d.comisionPct||0}% · alq. ${money(alquilerEnMes(r.d,now))}</div></div>`;});
+      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(r.d.nombre)}</span><span class="dash-row-val">${fmtMon(cur,r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${esc(ownerName(r.d.duenoId))} · com. ${r.d.comisionPct||0}% · alq. ${fmtMon(cur,alquilerEnMes(r.d,now))}</div></div>`;});
     html+='</div>';
-  }
-  // Ranking dueños por comisión
-  const porDueno={};gestionados.filter(d=>activoEnMes(d,now)).forEach(d=>{const c=alquilerEnMes(d,now)*(d.comisionPct||0)/100;porDueno[d.duenoId]=(porDueno[d.duenoId]||0)+c;});
-  const rkD=Object.keys(porDueno).map(id=>({id,c:porDueno[id]})).sort((a,b)=>b.c-a.c);
-  const maxD=rkD.length?rkD[0].c:1;
-  if(rkD.length){
-    html+='<h2 class="section">Comisión por dueño</h2><div class="card" style="padding:14px">';
-    rkD.forEach(r=>{const w=maxD>0?Math.round(r.c/maxD*100):0;const n=state.deptos.filter(d=>d.duenoId===r.id&&d.modalidad!=='dueno'&&activoEnMes(d,now)).length;
-      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(ownerName(r.id))}</span><span class="dash-row-val">${money(r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${n} ${n===1?'depto':'deptos'}</div></div>`;});
+  });
+  // Ranking dueños por comisión (bloque por moneda)
+  curs.forEach(cur=>{
+    const porDueno={};gestionados.filter(d=>activoEnMes(d,now)&&monOf(d)===cur).forEach(d=>{const c=alquilerEnMes(d,now)*(d.comisionPct||0)/100;porDueno[d.duenoId]=(porDueno[d.duenoId]||0)+c;});
+    const rkD=Object.keys(porDueno).map(id=>({id,c:porDueno[id]})).sort((a,b)=>b.c-a.c);
+    if(!rkD.length||rkD[0].c<=0)return;const maxD=rkD[0].c;
+    html+='<h2 class="section">Comisión por dueño'+(single?'':' · '+(cur==='USD'?'dólares':'pesos'))+'</h2><div class="card" style="padding:14px">';
+    rkD.forEach(r=>{const w=maxD>0?Math.round(r.c/maxD*100):0;const n=state.deptos.filter(d=>d.duenoId===r.id&&d.modalidad!=='dueno'&&activoEnMes(d,now)&&monOf(d)===cur).length;
+      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(ownerName(r.id))}</span><span class="dash-row-val">${fmtMon(cur,r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${n} ${n===1?'depto':'deptos'}</div></div>`;});
     html+='</div>';
-  }
+  });
   // Alertas accionables
   const tips=[];
   const vacSinPub=vacios.filter(d=>!d.publicando).length;
   if(vacSinPub)tips.push(`Tenés <b>${vacSinPub} ${vacSinPub===1?'depto vacío sin publicar':'deptos vacíos sin publicar'}</b> — no generan comisión, arrancá a publicarlos.`);
   else if(vacios.length)tips.push(`Tus <b>${vacios.length} ${vacios.length===1?'depto vacío ya está publicándose':'deptos vacíos ya se están publicando'}</b> — seguí de cerca las visitas.`);
   if(venc90.length)tips.push(`<b>${venc90.length} ${venc90.length===1?'contrato vence':'contratos vencen'}</b> en 3 meses — empezá a renovar o publicar.`);
-  if(morosos)tips.push(`<b>${morosos} ${morosos===1?'depto debe':'deptos deben'}</b> pagos este mes (${money(pendiente)} sin cobrar) — mandá los recordatorios.`);
-  const bajaCom=gestionados.filter(d=>activoEnMes(d,now)&&(d.comisionPct||0)>0&&(d.comisionPct||0)<comProm-2).length;
+  if(morosos)tips.push(`<b>${morosos} ${morosos===1?'depto debe':'deptos deben'}</b> pagos este mes (${dualStr(pendiente)} sin cobrar) — mandá los recordatorios.`);
+  const bajaCom=gAct.filter(d=>(d.comisionPct||0)<comProm-2).length;
   if(bajaCom)tips.push(`<b>${bajaCom} ${bajaCom===1?'depto tiene':'deptos tienen'}</b> comisión por debajo de tu promedio — oportunidad de renegociar.`);
-  if(comHist)tips.push(`Comisión histórica ya ganada en tus contratos: <b>${money(comHist)}</b>.`);
+  if(comHist.ARS||comHist.USD)tips.push(`Comisión histórica ya ganada en tus contratos: <b>${dualStr(comHist)}</b>.`);
   if(tips.length){html+='<h2 class="section">Para decidir</h2>'+tips.map(t=>`<div class="dash-tip">💡 ${t}</div>`).join('');}
 
   // Comportamiento de pago (a quién apurar)
@@ -679,23 +687,26 @@ function renderDashboard(){
 
   el.innerHTML=html;
 }
+function fmtMon(cur,v){const s=money(v);return cur==='USD'?s.replace('$','US$'):s;}
+function dualStr(obj){const parts=[];if(obj.ARS)parts.push(fmtMon('ARS',obj.ARS));if(obj.USD)parts.push(fmtMon('USD',obj.USD));return parts.length?parts.join(' + '):'$0';}
 function dstat(k,v,sub,tone){return `<div class="dstat ${tone||''}"><div class="dstat-k">${k}</div><div class="dstat-v">${v}</div><div class="dstat-sub">${sub}</div></div>`;}
 /* Comisión efectivamente cobrada por mes (últimos n meses hasta el actual) */
-function comisionSerie(n){
+function comisionSerie(n,cur){
   const out=[];let m=ymNow();for(let i=0;i<n;i++){out.unshift(m);m=shiftYm(m,-1);}
-  const set=dashOwner==='all'?state.deptos:state.deptos.filter(d=>d.duenoId===dashOwner);
+  let set=dashOwner==='all'?state.deptos:state.deptos.filter(d=>d.duenoId===dashOwner);
+  if(cur)set=set.filter(d=>(d.moneda||'ARS')===cur);
   return out.map(mes=>{let c=0;set.forEach(d=>{if(d.modalidad==='dueno'||!activoEnMes(d,mes))return;const pg=(state.pagos[mes]||{})[d.id]||{};if(pg.alq)c+=alquilerEnMes(d,mes)*(d.comisionPct||0)/100;});return{ym:mes,val:Math.round(c)};});
 }
-function compactMoney(v){if(v>=1e6)return '$'+(v/1e6).toFixed(v>=1e7?0:1).replace('.',',')+'M';if(v>=1e3)return '$'+Math.round(v/1e3)+'k';return '$'+v;}
-function sparkline(serie){
+function compactMoney(v,cur){const p=cur==='USD'?'US$':'$';if(v>=1e6)return p+(v/1e6).toFixed(v>=1e7?0:1).replace('.',',')+'M';if(v>=1e3)return p+Math.round(v/1e3)+'k';return p+v;}
+function sparkline(serie,cur){
   if(!serie.length)return '';
   const W=340,H=132,pad=6,topPad=18,botPad=14;const vals=serie.map(s=>s.val);const max=Math.max(...vals,1);const min=0;
   const n=serie.length;const bw=(W-pad*2)/n;
   const x=i=>pad+bw*i+bw*0.12;const bw2=bw*0.76;
   const y=v=>H-botPad-((v-min)/(max-min||1))*(H-topPad-botPad);
   let bars='',vlabels='';serie.forEach((s,i)=>{const yy=y(s.val);const bh=Math.max(1,(H-botPad)-yy);const cx=x(i)+bw2/2;
-    bars+=`<rect x="${x(i).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw2.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${i===n-1?'#0f6b4f':'#9cc9b9'}"><title>${ymLabel(s.ym)}: ${money(s.val)}</title></rect>`;
-    if(s.val>0)vlabels+=`<text x="${cx.toFixed(1)}" y="${(yy-4).toFixed(1)}" font-size="8.5" font-weight="700" fill="#0f6b4f" text-anchor="middle">${compactMoney(s.val)}</text>`;
+    bars+=`<rect x="${x(i).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw2.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${i===n-1?'#0f6b4f':'#9cc9b9'}"><title>${ymLabel(s.ym)}: ${fmtMon(cur||'ARS',s.val)}</title></rect>`;
+    if(s.val>0)vlabels+=`<text x="${cx.toFixed(1)}" y="${(yy-4).toFixed(1)}" font-size="8.5" font-weight="700" fill="#0f6b4f" text-anchor="middle">${compactMoney(s.val,cur)}</text>`;
   });
   const lab=i=>{const[y2,m2]=serie[i].ym.split('-');return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m2-1];};
   let labels='';serie.forEach((s,i)=>{labels+=`<text x="${(x(i)+bw2/2).toFixed(1)}" y="${H-3}" font-size="8" fill="#66756f" text-anchor="middle">${lab(i)}</text>`;});
@@ -892,9 +903,11 @@ async function fetchIPC(){
 function ipcMap(){return IPC_CACHE||Object.assign({},IPC_SEED,state.ipc||{});}
 function ymOf(d){return (d||'').slice(0,7);}
 function mesesPrevios(ymBase,n){const out=[];let v=ymBase;for(let i=0;i<n;i++){v=shiftYm(v,-1);out.unshift(v);}return out;}
-/* Ventana de IPC para un aumento efectivo en effYm: los n meses que terminan 2 meses antes,
-   porque el IPC de un mes lo publica el INDEC a mitad del mes siguiente.
-   Ej: aumento efectivo en JULIO -> usa marzo, abril y mayo (mayo sale a mitad de junio). */
+/* Ventana de IPC para un aumento efectivo en effYm.
+   El último IPC usable es el publicado el mes anterior al aumento (M-1), que corresponde al mes M-2,
+   porque el INDEC publica la inflación de un mes a mitad del mes siguiente.
+   Ej: aumento efectivo en ABRIL -> usa diciembre, enero y febrero (febrero sale a mitad de marzo).
+       aumento efectivo en JULIO -> usa marzo, abril y mayo. */
 function ventanaIPC(effYm,n){return mesesPrevios(shiftYm(effYm,-1),n);}
 function sumaVentana(effYm,n,map){const meses=ventanaIPC(effYm,n);let pct=0;const vals=[];for(const m of meses){if(map[m]==null||isNaN(map[m]))return null;const v=Math.round(map[m]*10)/10;pct+=v;vals.push({ym:m,val:v});}return{pct:Math.round(pct*10)/10,vals};}
 function sumaIPC(ymAdj,n,map){const meses=mesesPrevios(ymAdj,n);let pct=0;const vals=[];for(const m of meses){if(map[m]==null||isNaN(map[m]))return null;const v=Math.round(map[m]*10)/10;pct+=v;vals.push({ym:m,val:v});}return{pct:Math.round(pct*10)/10,vals};}
@@ -928,16 +941,23 @@ function marcarPrevios(dep){
 /* Aplica automáticamente los ajustes que ya corresponden y avisa */
 function autoAjustes(){
   const map=ipcMap();const nuevos=[];
+  // Migración única: recalcular ajustes viejos que quedaron con la ventana de IPC incorrecta
+  let fixRan=false;
+  if(!(state.config&&state.config.ipcWindowFixed)){
+    state.deptos.forEach(d=>{if(d.ajusteMeses>0&&d.contratoInicio&&d.alquilerInicial!=null){d.ajustes=[];d.alquiler=d.alquilerInicial;}});
+    if(!state.config)state.config={};state.config.ipcWindowFixed=true;fixRan=true;
+  }
   state.deptos.forEach(dep=>{
     if(!dep.ajusteMeses||dep.ajusteMeses<=0||!dep.contratoInicio)return;
     const startYm=ymOf(dep.contratoInicio);const nowYm=ymNow();const horizonte=shiftYm(nowYm,1);let k=1;let guard=0;
     while(guard<300){guard++;const effYm=shiftYm(startYm,k*dep.ajusteMeses);if(cmpYm(effYm,horizonte)>0)break; // no precomputar más allá del mes que viene
       const yaHecho=(dep.ajustes||[]).some(a=>a.ym===effYm);
-      if(!yaHecho){const r=sumaVentana(effYm,dep.ajusteMeses,map);if(r){const anterior=alquilerEnMes(dep,shiftYm(effYm,-1));const nuevo=Math.round(anterior*(1+r.pct/100));dep.ajustes=dep.ajustes||[];dep.ajustes.push({ym:effYm,fecha:new Date().toISOString().slice(0,10),pct:r.pct,anterior,nuevo,vals:r.vals});if(cmpYm(effYm,nowYm)>=0)nuevos.push({dep,ym:effYm,pct:r.pct,anterior,nuevo,vals:r.vals,n:dep.ajusteMeses});}}
+      if(!yaHecho){const r=sumaVentana(effYm,dep.ajusteMeses,map);if(r){const anterior=alquilerEnMes(dep,shiftYm(effYm,-1));const nuevo=Math.round(anterior*(1+r.pct/100));dep.ajustes=dep.ajustes||[];dep.ajustes.push({ym:effYm,fecha:new Date().toISOString().slice(0,10),pct:r.pct,anterior,nuevo,vals:r.vals});if(!fixRan&&cmpYm(effYm,nowYm)>=0)nuevos.push({dep,ym:effYm,pct:r.pct,anterior,nuevo,vals:r.vals,n:dep.ajusteMeses});}}
       k++;}
     dep.alquiler=alquilerEnMes(dep,ymNow()); // el "actual" es el vigente este mes real
   });
   if(nuevos.length){save();render();cartelAjustes(nuevos);}
+  else if(fixRan){save();render();}
 }
 function periodoLabel(n){return n===3?'trimestral':n===4?'cuatrimestral':n===6?'semestral':n===12?'anual':'periódico';}
 function msgAumento(dep,aj){const n=dep.ajusteMeses||3;const meses=(aj.vals||[]).map(v=>ymLabel(v.ym)).join(', ');const vars={inquilino:dep.inqNombre||dep.inquilino||'',depto:dep.nombre,periodo:periodoLabel(n),ipc:aj.pct.toFixed(1),nuevo:curMoney(dep,aj.nuevo),anterior:curMoney(dep,aj.anterior),desde:aj.ym?ymLabel(aj.ym):'',meses,firma:firmaOrg()};return fillTpl(tpl('aumento'),vars);}
