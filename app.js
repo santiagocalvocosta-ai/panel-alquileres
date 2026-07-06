@@ -147,9 +147,12 @@ function renderMes(){
     else{faltaCobrar[cur]+=rent;}
   });
   const pct=activos.length?Math.round(alDia/activos.length*100):0;
+  const alqSinCobrar=activos.filter(d=>!pagos(d.id).alq&&activoEnMes(d)).length;
+  const alqTotal=activos.filter(d=>activoEnMes(d)&&(d.estado||'alquilado')==='alquilado').length;
+  const todoCobrado=alqSinCobrar===0&&alqTotal>0;
   let html=`<div class="summary">
     <div class="stat pos"><div class="k">Cobrado</div><div class="v" style="font-size:15px">${dualStr(cobrado)}</div></div>
-    <div class="stat warn"><div class="k">Falta cobrar</div><div class="v" style="font-size:15px">${dualStr(faltaCobrar)}</div></div>
+    <div class="stat ${alqSinCobrar?'warn':'pos'}"><div class="k">Pendiente de cobro ${alqSinCobrar}/${alqTotal}</div><div class="v" style="font-size:15px">${alqSinCobrar===0?'✓ Todo cobrado':dualStr(faltaCobrar)}</div></div>
     <div class="stat"><div class="k">Tu comisión</div><div class="v" style="font-size:15px">${dualStr(comTotal)}</div></div>
   </div>`;
 
@@ -175,7 +178,7 @@ function renderMes(){
     const vencido=cb.nivel==='critico';
     const puedeRecordar=(cb.nivel==='recordar'||cb.nivel==='pendiente')&&dep.telInquilino;
     const wa=puedeRecordar?`<a class="contact contact-amber" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,'recordar'))}" target="_blank" rel="noopener">${WA_SVG} Recordar pago al inquilino</a>`:'';
-    const mailGar=(vencido&&dep.garantiaMail)?`<a class="contact contact-red" href="${mailtoGar(dep)}">${GMAIL_SVG} Avisar a la garantía</a>`:'';
+    const mailGar=(vencido&&dep.garantiaMail)?`<a class="contact contact-red" href="${mailtoGar(dep)}" target="_blank" rel="noopener">${GMAIL_SVG} Avisar a la garantía</a>`:'';
     const efAj=ajusteDelMes(dep,ym);
     const infoChip=efAj?`<span class="chip-info" aria-hidden="true">i</span>`:'';
     const proxYm=shiftYm(ym,1);const avisoAj=(dep.ajustes||[]).find(a=>a.ym===proxYm);
@@ -309,7 +312,7 @@ function montoTransfer(dep,m){m=m||ym;const rent=alquilerEnMes(dep,m);const c=de
 
 // SVG logos para botones de contacto
 const WA_SVG=`<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.531 5.849L.073 23.629a.75.75 0 0 0 .92.92l5.757-1.463A11.944 11.944 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.717 9.717 0 0 1-4.953-1.353l-.355-.211-3.668.932.949-3.542-.232-.366A9.712 9.712 0 0 1 2.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>`;
-const GMAIL_SVG=`<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/></svg>`;
+const GMAIL_SVG=`<span class="gmail-badge"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/></svg></span>`;
 
 function marcarAjusteNotificado(depId){
   const m=ymNow();if(!state.pagos[m])state.pagos[m]={};if(!state.pagos[m][depId])state.pagos[m][depId]={alq:false,exp:false,ser:false};
@@ -371,7 +374,7 @@ function renderGarantes(){
   Object.values(grupos).sort((a,b)=>b.deptos.length-a.deptos.length).forEach(g=>{
     const total=g.deptos.length;const masaStr=dualStr(g.alqTotal);
     const badge=g.reclamos?`<span class="gar-badge-red">${g.reclamos} en reclamo</span>`:`<span class="gar-badge-ok">${total} activo${total===1?'':'s'}</span>`;
-    const mailBtn=g.mail?`<a class="contact contact-red" href="mailto:${encodeURIComponent(g.mail)}" aria-label="Mail a ${esc(g.label)}">${GMAIL_SVG} ${esc(g.mail)}</a>`:'';
+    const mailBtn=g.mail?`<a class="contact contact-red" href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(g.mail)}" target="_blank" rel="noopener" aria-label="Mail a ${esc(g.label)}">${GMAIL_SVG} ${esc(g.mail)}</a>`:'';
     const filas=g.deptos.map(({dep,enReclamo})=>{
       const pill=enReclamo?'pill-debt':'pill-ok';const pillTxt=enReclamo?'Atrasado':'Al día';
       const rent=alquilerEnMes(dep);const mailReclamo=enReclamo&&dep.garantiaMail?`<a class="gar-action-mail" href="${mailtoGar(dep)}" aria-label="Avisar reclamo por ${esc(dep.nombre)}">${GMAIL_SVG} Avisar</a>`:'';
@@ -396,53 +399,59 @@ function renderGarantes(){
   html+='</div>';el.innerHTML=html;
 }
 
-function renderAlquileres(){
-  const el=document.getElementById('view-alquileres');
-  let html='';
+function _alquileresData(){
   const withOc=state.deptos.map(d=>({dep:d,oc:ocupacion(d)}));
-  // Secciones
   const sinAlquilar=withOc.filter(x=>x.oc.code==='vacio'||x.oc.code==='publicado');
   const vencenPronto=withOc.filter(x=>x.oc.ml!=null&&x.oc.ml>=0&&x.oc.ml<=3&&x.oc.code!=='vacio'&&x.oc.code!=='publicado').sort((a,b)=>a.oc.ml-b.oc.ml);
   const usadas=new Set([...sinAlquilar,...vencenPronto].map(x=>x.dep.id));
   const resto=withOc.filter(x=>!usadas.has(x.dep.id)).sort((a,b)=>{const ma=a.oc.ml==null?999:a.oc.ml,mb=b.oc.ml==null?999:b.oc.ml;return ma-mb;});
-
+  return{sinAlquilar,vencenPronto,resto};
+}
+function _alquileresHtml(){
+  const{sinAlquilar,vencenPronto,resto}=_alquileresData();
   const focoVence=oc=>{if(oc.ml==null)return 'Sin fecha de fin';if(oc.ml<0)return 'Contrato vencido';if(oc.ml===0)return 'Vence este mes';return 'Vence en '+oc.ml+(oc.ml===1?' mes':' meses');};
   const card=(x,mostrarFoco)=>{const dep=x.dep,oc=x.oc;
     const h=historialPago(dep);const bp=badgePagador(h);
     const compLine=((dep.estado||'alquilado')==='alquilado'&&h.n>0)?`<div class="comp-line"><span class="estado-badge ${bp.cls}">${bp.txt}</span> <span style="font-size:12px;color:var(--muted)">paga cerca del día ~${Math.round(h.prom)}${h.tarde?(' · '+h.tarde+(h.tarde===1?' mes':' meses')+' tarde'):''}</span></div>`:'';
     const vacante=oc.code==='vacio';
     const alquiladoLejos=!vacante&&oc.ml!=null&&oc.ml>3;
-    const controls=alquiladoLejos?'':`<div class="pub-q">¿Ya lo estás publicando para alquilar?</div>
-      <div class="seg">
-        <button class="${dep.publicando?'':'on-bad'}" onclick="setPublicando('${dep.id}',false)">Todavía no</button>
-        <button class="${dep.publicando?'on-ok':''}" onclick="setPublicando('${dep.id}',true)">Sí, publicando</button></div>`;
+    const controls=alquiladoLejos?'':(`<div class="pub-q">¿Ya lo estás publicando para alquilar?</div><div class="seg"><button class="${dep.publicando?'':'on-bad'}" onclick="setPublicando('${dep.id}',false)">Todavía no</button><button class="${dep.publicando?'on-ok':''}" onclick="setPublicando('${dep.id}',true)">Sí, publicando</button></div>`);
     const accion=vacante?`<button class="btn btn-primary btn-sm" onclick="openAlquiler('${dep.id}')">Registrar alquiler</button>`:'';
     const puedeRenovar=!vacante&&dep.inquilino&&oc.ml!=null&&oc.ml<=3;
     const renovar=puedeRenovar?`<button class="btn btn-primary btn-sm" onclick="openRenovar('${dep.id}')">Renovar contrato</button>`:'';
-    return `<div class="card">
-      <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(ownerName(dep.duenoId))}${dep.contratoFin?' · fin '+dep.contratoFin.split('-').reverse().join('/'):''}</div></div>
-      <span class="estado-badge ${oc.cls}">${oc.label}</span></div>
-      ${mostrarFoco?`<div class="foco-venc">⏳ ${focoVence(oc)}</div>`:''}
-      ${compLine}
-      ${controls}
-      <div class="sheet-actions" style="margin-top:10px">
-        <button class="btn btn-ghost btn-sm" onclick="openDepto('${dep.id}')">Editar contrato</button>
-        ${renovar}${accion}</div></div>`;
+    return `<div class="card"><div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(ownerName(dep.duenoId))}${dep.contratoFin?' · fin '+dep.contratoFin.split('-').reverse().join('/'):''}</div></div><span class="estado-badge ${oc.cls}">${oc.label}</span></div>${mostrarFoco?`<div class="foco-venc">⏳ ${focoVence(oc)}</div>`:''} ${compLine}${controls}<div class="sheet-actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="openDepto('${dep.id}')">Editar contrato</button>${renovar}${accion}</div></div>`;
   };
   const seccion=(titulo,arr,foco)=>{if(!arr.length)return '';return `<h2 class="section">${titulo}</h2><div class="cards">${arr.map(x=>card(x,foco)).join('')}</div>`;};
-
-  if(state.deptos.length===0){el.innerHTML=empty('&#128273;','Todavía no cargaste propiedades.','Cargalos en la pestaña “Deptos”.');return;}
-  html+=seccion('🔴 Sin alquilar',sinAlquilar,false);
-  html+=seccion('🟠 Vencen pronto (3 meses)',vencenPronto,true);
-  html+=seccion('🟢 El resto',resto,true);
-  el.innerHTML=html;
+  if(state.deptos.length===0)return empty('&#128273;','Todavía no cargaste propiedades.','Cargalos en "Propiedades".');
+  return seccion('🔴 Sin alquilar',sinAlquilar,false)+seccion('🟠 Vencen pronto (3 meses)',vencenPronto,true)+seccion('🟢 El resto',resto,true);
 }
+function renderAlquileres(){const el=document.getElementById('view-alquileres');if(el)el.innerHTML=_alquileresHtml();}
+
 function setEstado(id,e){const dep=state.deptos.find(d=>d.id===id);dep.estado=e;save();render();toast(e==='alquilado'?'Marcado alquilado':'Marcado vacío');}
 function setPublicando(id,v){const dep=state.deptos.find(d=>d.id===id);dep.publicando=!!v;save();render();toast(v?'Marcado: se está publicando':'Marcado: no se está publicando');}
 
+let deptosSubTab='propiedades';
+function setDeptosSubTab(v){deptosSubTab=v;renderDeptos();}
+
 function renderDeptos(){
   const el=document.getElementById('view-deptos');
-  let html=`<div class="add-fab"><button class="btn btn-primary" onclick="openDepto()">+ Agregar propiedad</button></div>`;
+  // Sub-nav: Propiedades | Vencimientos
+  const subNav=`<div class="subnav">
+    <button class="subtab ${deptosSubTab==='propiedades'?'on':''}" onclick="setDeptosSubTab('propiedades')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/></svg>
+      Propiedades
+    </button>
+    <button class="subtab ${deptosSubTab==='vencimientos'?'on':''}" onclick="setDeptosSubTab('vencimientos')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+      Vencimientos
+    </button>
+  </div>`;
+  let html=subNav;
+
+  if(deptosSubTab==='vencimientos'){el.innerHTML=html+_alquileresHtml();return;}
+
+  // === Vista: Propiedades ===
+  html+=`<div class="add-fab"><button class="btn btn-primary" onclick="openDepto()">+ Agregar propiedad</button></div>`;
   if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus propiedades.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
   const grupos={};state.deptos.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
   Object.keys(grupos).forEach(oid=>{
@@ -1053,7 +1062,13 @@ function cobranza(dep){
   if(hoy>=recStart)return{nivel:'recordar',due,dia:hoy};  // ya conviene recordar
   return{nivel:'proximo',due,dia:hoy};
 }
-function mailtoGar(dep){const subj='Atraso de pago — '+dep.nombre;const body=garantiaText(dep);return 'mailto:'+encodeURIComponent(dep.garantiaMail||'')+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);}
+function mailtoGar(dep){
+  const subj='Atraso de pago — '+dep.nombre;
+  const body=garantiaText(dep);
+  const mail=dep.garantiaMail||'';
+  // Gmail compose web — abre en nueva solapa en desktop, app de Gmail en mobile
+  return 'https://mail.google.com/mail/?view=cm&to='+encodeURIComponent(mail)+'&su='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);
+}
 function itemsAdeuda(dep){const p=pagos(dep.id);const f=[];if(!p.alq)f.push('alquiler');if(dep.expensas&&!p.exp)f.push('expensas');if(!servPagos(dep).allPaid)f.push('servicios');if(f.length<=1)return f[0]||'alquiler';return f.slice(0,-1).join(', ')+' y '+f[f.length-1];}
 function reminderText(dep,nivel){
   const vars={inquilino:dep.inqNombre||dep.inquilino||'',depto:dep.nombre,mes:ymLabel(ym),items:itemsAdeuda(dep),alquiler:curMoney(dep,alquilerEnMes(dep)),firma:firmaOrg()};
