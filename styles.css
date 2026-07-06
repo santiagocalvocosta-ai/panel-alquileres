@@ -126,7 +126,7 @@
   .dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:4px}
   @media(min-width:560px){.dash-grid{grid-template-columns:repeat(3,1fr)}}
   .dstat{background:var(--surface);border-radius:14px;padding:13px;box-shadow:var(--shadow);border-left:3px solid var(--line)}
-  .dstat.ok{border-left-color:var(--green)} .dstat.warn{border-left-color:var(--amber)} .dstat.bad{border-left-color:var(--red)}
+  .dstat.ok,.dstat.warn,.dstat.bad{border-left:none;padding-left:13px}
   .dstat-k{font-size:11px;color:var(--muted);font-weight:600}
   .dstat-v{font-size:20px;font-weight:800;margin-top:3px;letter-spacing:-.01em}
   .dstat-sub{font-size:11px;color:var(--muted);margin-top:2px}
@@ -354,85 +354,187 @@
 
     /* ═══════════════════════════════════════════════════════════
        GRILLA DE OPERACIONES — ALTA DENSIDAD (Airtable / Stripe)
-       Solo aplica a la vista de Seguimiento (#view-mes)
+       Solo en desktop. Seguimiento, Propiedades, Vencimientos y Garantes.
        ═══════════════════════════════════════════════════════════ */
 
-    /* El grupo de dueño: header de sección sticky */
-    #view-mes .section-name{
-      font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-      color:var(--muted);background:var(--bg);
-      padding:18px 0 6px;margin:0;border-bottom:1px solid #e8edf0;
+    /* ── Base común: contenedor .cards como tabla ────────────────── */
+    #view-mes .cards,
+    #view-deptos .cards,
+    #view-alquileres .cards,
+    #view-garantes .cards{
+      display:block;background:var(--surface);border-radius:12px;
+      box-shadow:0 1px 3px rgba(0,0,0,.05),0 1px 12px rgba(0,0,0,.035);
+      overflow:hidden;margin-bottom:22px;
     }
 
-    /* Header de tabla simulado: dice solo "Propiedades" */
-    #view-mes .cards::before{
-      content:'Propiedades';
-      display:block;padding:7px 16px;
+    /* Header de tabla (::before del .cards) */
+    #view-mes .cards::before,
+    #view-deptos .cards::before,
+    #view-alquileres .cards::before,
+    #view-garantes .cards::before{
+      display:block;padding:8px 16px;
       font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
       color:#94a3b8;background:#f8fafc;
-      border-bottom:1px solid #e8edf0;border-radius:10px 10px 0 0;
-      user-select:none;
+      border-bottom:1px solid #e8edf0;user-select:none;
+    }
+    #view-mes .cards::before{content:'Propiedades'}
+    #view-deptos .cards::before{content:'Propiedades'}
+    #view-alquileres .cards::before{content:'Vencimientos'}
+    #view-garantes .cards::before{content:'Garantes'}
+
+    /* Grupo de dueño (section-name) por encima de su tabla */
+    #view-mes .section-name,
+    #view-deptos .section-name{
+      font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--muted);background:transparent;
+      padding:18px 2px 8px;margin:0;border:none;
     }
 
-    /* ── Dueños desktop: tabla de filas ──────────────────────────── */
-    #view-duenos .cards{
-      display:block;background:var(--surface);border-radius:12px;
-      box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 12px rgba(0,0,0,.04);
-      overflow:hidden;margin-bottom:20px;
+    /* ── Fila base (.card) para las 4 vistas ─────────────────────── */
+    #view-mes .card,
+    #view-deptos .card,
+    #view-alquileres .card,
+    #view-garantes .card{
+      background:#fff;box-shadow:none;border-radius:0;margin:0;
+      border-bottom:1px solid #f1f5f9;transition:background .12s;
+      align-items:center;
     }
-    #view-duenos .cards::before{
-      content:'Dueño';display:block;padding:7px 16px;
-      font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-      color:#94a3b8;background:#f8fafc;border-bottom:1px solid #e8edf0;border-radius:10px 10px 0 0;
-      user-select:none;
+    #view-mes .card:last-child,
+    #view-deptos .card:last-child,
+    #view-alquileres .card:last-child,
+    #view-garantes .card:last-child{border-bottom:none}
+    #view-mes .card:hover,
+    #view-deptos .card:hover,
+    #view-alquileres .card:hover,
+    #view-garantes .card:hover{background:rgba(15,107,79,.03)}
+
+    /* ── SEGUIMIENTO: 6 columnas ─────────────────────────────────── */
+    #view-mes .card{
+      display:grid;
+      grid-template-columns:2.2fr 1fr 1fr 1fr 1fr 0.9fr;
+      padding:0;min-height:54px;
+    }
+    #view-mes .card .card-top{
+      grid-column:1/3;grid-row:1;display:flex;align-items:center;gap:10px;
+      padding:9px 14px;margin:0;overflow:hidden;
+    }
+    #view-mes .card .card-top>div{flex:1;min-width:0}
+    #view-mes .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #view-mes .card .card-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+    #view-mes .card .card-top .paid-pill{flex-shrink:0;margin:0;font-size:10px;padding:2px 8px}
+    #view-mes .card .chips{
+      display:grid;grid-template-columns:subgrid;grid-column:3/6;gap:0;margin:0;
+    }
+    #view-mes .card .chips .chip{
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      border:none;border-radius:6px;padding:6px 8px;margin:6px 4px;
+      box-shadow:none;background:#f8fafc;min-height:38px;cursor:pointer;
+      transition:background .1s;
+    }
+    #view-mes .card .chips .chip .lbl{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#94a3b8;margin-bottom:2px}
+    #view-mes .card .chips .chip .amt{font-size:12.5px;font-weight:700;color:var(--ink)}
+    #view-mes .card .chips .chip .mk{font-size:10px;font-weight:700;margin-top:2px;color:var(--red)}
+    #view-mes .card .chips .chip.paid{background:rgba(15,107,79,.08)}
+    #view-mes .card .chips .chip.paid .lbl{color:rgba(15,107,79,.55)}
+    #view-mes .card .chips .chip.paid .amt,#view-mes .card .chips .chip.paid .mk{color:var(--green)}
+    #view-mes .card .chips .chip.chip-due{background:rgba(192,48,74,.06)}
+    #view-mes .card .chips .chip.chip-due .amt,#view-mes .card .chips .chip.chip-due .mk{color:var(--red)}
+    #view-mes .card .chips .chip.na{opacity:.3}
+    #view-mes .card .wa-row{
+      grid-column:6;grid-row:1;display:flex;flex-direction:column;align-items:flex-end;
+      gap:4px;padding:6px 10px 6px 4px;
+    }
+    #view-mes .card .wa-row .contact{margin:0;padding:5px 9px;font-size:11px;border-radius:8px;white-space:nowrap}
+    #view-mes .card .wa-row .contact svg{width:13px;height:13px}
+    #view-mes .card .pago-fecha{grid-column:1/3;padding:0 14px 8px;font-size:11px;min-height:auto;margin:0}
+    #view-mes .card .aviso-aumento,
+    #view-mes .card .aj-info-line{grid-column:1/-1;margin:0;border-radius:0;padding:6px 14px;font-size:11.5px}
+
+    /* ── PROPIEDADES: 4 columnas (Inmueble · Estado · Alquiler · Acciones) ── */
+    #view-deptos .cards::before{content:'Inmueble\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Estado\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Alquiler\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Acciones';white-space:pre}
+    #view-deptos .card{
+      display:grid;grid-template-columns:2.4fr 1.1fr 1.3fr auto;padding:0;min-height:54px;
+    }
+    #view-deptos .card .card-top{
+      grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:space-between;
+      gap:8px;padding:10px 14px;margin:0;overflow:hidden;
+    }
+    #view-deptos .card .card-top>div:first-child{min-width:0;overflow:hidden}
+    #view-deptos .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #view-deptos .card .card-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+    #view-deptos .card .estado-badge{grid-column:2;grid-row:1;justify-self:start;margin:0 8px}
+    #view-deptos .card .liq-line{
+      grid-column:3;grid-row:1;border:none;padding:0 12px;font-size:11.5px;
+      display:block;color:var(--muted);
+    }
+    #view-deptos .card .liq-line:first-of-type{color:var(--ink);font-weight:600}
+    /* Solo mostramos la primera liq-line (Alquiler) en la fila; el resto se ve al editar */
+    #view-deptos .card .liq-line:not(:first-of-type){display:none}
+    #view-deptos .card .sheet-actions{
+      grid-column:4;grid-row:1;margin:0;padding:6px 10px;display:flex;gap:6px;justify-content:flex-end;
+    }
+    #view-deptos .card .sheet-actions .btn-sm{padding:6px 11px;font-size:11.5px;min-height:34px}
+
+    /* ── VENCIMIENTOS: 3 columnas (Inmueble · Estado · Acciones) ──── */
+    #view-alquileres .cards::before{content:'Inmueble\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Estado\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Acciones';white-space:pre}
+    #view-alquileres .card{
+      display:grid;grid-template-columns:2.4fr 1.4fr auto;padding:0;min-height:54px;align-items:center;
+    }
+    #view-alquileres .card .card-top{
+      grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:space-between;
+      gap:8px;padding:10px 14px;margin:0;overflow:hidden;
+    }
+    #view-alquileres .card .card-top .estado-badge{grid-column:unset}
+    #view-alquileres .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #view-alquileres .card .card-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+    #view-alquileres .card .foco-venc{
+      grid-column:2;grid-row:1;margin:0;padding:0 12px;font-size:12px;font-weight:600;
+    }
+    #view-alquileres .card .comp-line{grid-column:1/-1;grid-row:2;padding:0 14px 8px;margin:0}
+    #view-alquileres .card .pub-q{grid-column:1/-1;grid-row:3;padding:6px 14px 2px;margin:0}
+    #view-alquileres .card .seg{grid-column:1/-1;grid-row:4;margin:0 14px 10px}
+    #view-alquileres .card .sheet-actions{
+      grid-column:3;grid-row:1;margin:0;padding:6px 10px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;
+    }
+    #view-alquileres .card .sheet-actions .btn-sm{padding:6px 11px;font-size:11.5px;min-height:34px}
+
+    /* ── GARANTES: filas con stats + acciones (mantiene mini-stats) ── */
+    #view-garantes .cards::before{content:'Garantes'}
+    #view-garantes .card{padding:14px 16px;display:block}
+    #view-garantes .card .card-top{margin-bottom:10px}
+    #view-garantes .gar-stats{grid-template-columns:repeat(4,1fr);margin:0 0 10px}
+
+    /* ── DUEÑOS: tarjetas separadas, detalle full-width legible ──── */
+    #view-duenos .cards{
+      display:flex;flex-direction:column;gap:16px;
+      background:transparent;box-shadow:none;border-radius:0;overflow:visible;margin-bottom:22px;
     }
     #view-duenos .card{
-      display:grid;grid-template-columns:1.8fr 1.2fr 1fr auto;align-items:center;
-      padding:0;margin:0;background:#fff;box-shadow:none;border-radius:0;
-      border-bottom:1px solid #f1f5f9;transition:background .12s;min-height:56px;
-    }
-    #view-duenos .card:last-child{border-bottom:none}
-    #view-duenos .card:hover{background:rgba(15,107,79,.03)}
-    #view-duenos .card .card-top{
-      grid-column:1;grid-row:1;display:flex;align-items:center;gap:10px;
-      padding:10px 16px;margin:0;overflow:hidden;
-    }
-    #view-duenos .card .card-name{font-size:13.5px;font-weight:700}
-    #view-duenos .card .liq-hero{
-      grid-column:2;grid-row:1;margin:0;border-radius:8px;padding:8px 12px;
-    }
-    #view-duenos .card .liq-hero-v{font-size:15px}
-    #view-duenos .card .liq-hero-k{font-size:10px}
-    #view-duenos .card .liq-hero-sub{display:none}
-    #view-duenos .card .liq-details{grid-column:3;grid-row:1;padding:0 10px}
-    #view-duenos .card .liq-details summary{font-size:11.5px;padding:4px 0;min-height:auto}
-    #view-duenos .card .contact{
-      grid-column:4;grid-row:1;margin:0;padding:6px 12px;font-size:11.5px;
-      white-space:nowrap;border-radius:8px;
-    }
-
-    /* ── Garantes desktop: 4 tarjetas en grid ancho ─────────────── */
-    #view-garantes .cards{
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;
-    }
-    #view-garantes .card{
-      display:block;padding:18px;margin:0;
-      box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 14px rgba(0,0,0,.04);
-      border-radius:14px;
-    }
-    #view-garantes .gar-stats{grid-template-columns:repeat(4,1fr)}
-
-    /* ── Otras vistas ─────────────────────────────────────────────── */
-    #view-deptos .cards,
-    #view-alquileres .cards{
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;
-    }
-    #view-deptos .card,
-    #view-alquileres .card{
-      display:block;padding:15px;margin:0;
+      display:block;padding:0;margin:0;background:#fff;border-radius:14px;
       box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 12px rgba(0,0,0,.04);
-      border-radius:var(--radius);
+      border-bottom:none;overflow:hidden;
     }
+    #view-duenos .card:hover{background:#fff}
+    #view-duenos .card>.card-top{
+      display:flex;align-items:center;justify-content:space-between;gap:14px;
+      padding:15px 18px;margin:0;border-bottom:1px solid #f1f5f9;
+    }
+    #view-duenos .card .card-name{font-size:15px;font-weight:800}
+    #view-duenos .card .liq-hero{
+      margin:0;border-radius:10px;padding:11px 16px;min-width:210px;text-align:right;
+    }
+    #view-duenos .card .liq-hero-k{font-size:10.5px}
+    #view-duenos .card .liq-hero-v{font-size:18px}
+    #view-duenos .card .liq-hero-sub{font-size:11.5px;display:block}
+    #view-duenos .card .liq-details{padding:2px 18px 14px;margin:0}
+    #view-duenos .card .liq-details summary{font-size:12.5px;padding:12px 0 8px;min-height:auto}
+    #view-duenos .card .liq-details[open] summary{border-bottom:1px solid #f1f5f9;margin-bottom:12px}
+    #view-duenos .card .liq-line{padding:6px 0}
+    #view-duenos .card .mini-list{margin-top:12px}
+    #view-duenos .card .mini-row-transf{padding:11px 0}
+    #view-duenos .card>.contact{margin:0 18px 16px}
+
+    /* ── DASHBOARD: cards sin cambio de layout ──────────────────── */
     #view-dashboard .card{display:block;padding:15px;margin-bottom:0;}
   }
     @media (min-width:1440px){
