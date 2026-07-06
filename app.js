@@ -23,7 +23,10 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.duenos
     const byKey={},remap={},kept=[];(s.duenos||[]).forEach(o=>{const key=((o.apellido||'')+'|'+(o.nombre||'')).toLowerCase();if(key==='|'){kept.push(o);return;}if(byKey[key]!=null){remap[o.id]=byKey[key];}else{byKey[key]=o.id;kept.push(o);}});
     s.duenos=kept;(s.deptos||[]).forEach(d=>{if(remap[d.duenoId])d.duenoId=remap[d.duenoId];});
     return s;}}catch(e){}return {duenos:[],deptos:[],pagos:{},alquileres:[],config:{onboarded:false,organizador:{nombre:'',tel:''},pin:'',cobranza:{diaVencimiento:10}}};}
-function save(){localStorage.setItem(KEY,JSON.stringify(state));pushRemote();}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){console.warn('localStorage write failed:',e);}
+  pushRemote();
+}
 let pushT;
 function pushRemote(){
   if(!sbUser||!remoteReady)return;
@@ -104,15 +107,37 @@ function ocupacion(dep){
 }
 function pipeline(){return state.deptos.map(d=>({dep:d,oc:ocupacion(d)})).filter(x=>x.oc.urg>0).sort((a,b)=>b.oc.urg-a.oc.urg||((a.oc.ml==null?99:a.oc.ml)-(b.oc.ml==null?99:b.oc.ml)));}
 
-function go(tab){currentTab=tab;document.querySelectorAll('.tab').forEach(t=>{const on=t.dataset.tab===tab;t.classList.toggle('active',on);if(on)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current');});document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById('view-'+tab).classList.add('active');const titles={mes:'Seguimiento',duenos:'Liquidación por dueño',alquileres:'Alquileres y vencimientos',deptos:'Departamentos',dashboard:'Dashboard'};document.getElementById('headTitle').textContent=titles[tab];document.getElementById('monthBar').style.display=(tab==='deptos'||tab==='alquileres'||tab==='dashboard')?'none':'flex';window.scrollTo(0,0);render();}
+function go(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>{
+    const on=t.dataset.tab===tab;
+    t.classList.toggle('active',on);
+    if(on)t.setAttribute('aria-current','page');
+    else t.removeAttribute('aria-current');
+  });
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const el=document.getElementById('view-'+tab);
+  if(el)el.classList.add('active');
+  const titles={mes:'Este mes',deptos:'Propiedades',duenos:'Dueños',garantes:'Garantes',alquileres:'Vencimientos',dashboard:'Dashboard'};
+  const ht=document.getElementById('headTitle');if(ht)ht.textContent=titles[tab]||'';
+  render();
+}
 function changeMonth(n){ym=shiftYm(ym,n);render();}
 function goToday(){ym=ymNow();render();toast('Mes actual');}
 
-function render(){document.getElementById('monthLabel').innerHTML=ymLabel(ym);if(currentTab==='mes')renderMes();if(currentTab==='duenos')renderDuenos();if(currentTab==='alquileres')renderAlquileres();if(currentTab==='deptos')renderDeptos();if(currentTab==='dashboard')renderDashboard();}
+function render(){
+  document.getElementById('monthLabel').innerHTML=ymLabel(ym);
+  if(currentTab==='mes')renderMes();
+  if(currentTab==='deptos')renderDeptos();
+  if(currentTab==='duenos')renderDuenos();
+  if(currentTab==='garantes')renderGarantes();
+  if(currentTab==='alquileres')renderAlquileres();
+  if(currentTab==='dashboard')renderDashboard();
+}
 
 function renderMes(){
   const el=document.getElementById('view-mes');
-  if(state.deptos.length===0){el.innerHTML=empty('&#127968;','Todavía no cargaste departamentos.','Agregá el primero desde la pestaña “Deptos”.');return;}
+  if(state.deptos.length===0){el.innerHTML=empty('&#127968;','Todavía no cargaste propiedades.','Agregá el primero desde la pestaña “Deptos”.');return;}
   const activos=state.deptos.filter(d=>activoEnMes(d));
   const cobrado={ARS:0,USD:0},faltaCobrar={ARS:0,USD:0},comTotal={ARS:0,USD:0};let alDia=0;
   activos.forEach(dep=>{
@@ -144,13 +169,13 @@ function renderMes(){
     if(mesQuery){const q=mesQuery.toLowerCase();if(!((dep.nombre||'').toLowerCase().includes(q)||(dep.inquilino||'').toLowerCase().includes(q)))return false;}
     return true;
   });
-  if(list.length===0){html+=empty('&#128269;','Sin departamentos alquilados este mes.','Cambiá de mes o de filtro.');el.innerHTML=html;return;}
+  if(list.length===0){html+=empty('&#128269;','Sin propiedades alquiladas este mes.','Cambiá de mes o de filtro.');el.innerHTML=html;return;}
   const cardHtml=dep=>{
     const p=pagos(dep.id);const cb=cobranza(dep);const[ptxt,pcls]=PILL[cb.nivel]||PILL.pendiente;
     const vencido=cb.nivel==='critico';
     const puedeRecordar=(cb.nivel==='recordar'||cb.nivel==='pendiente')&&dep.telInquilino;
-    const wa=puedeRecordar?`<a class="contact contact-amber" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,'recordar'))}" target="_blank" rel="noopener">🔔 Recordar pago al inquilino</a>`:'';
-    const mailGar=(vencido&&dep.garantiaMail)?`<a class="contact contact-red" href="${mailtoGar(dep)}">📧 Avisar a la garantía</a>`:'';
+    const wa=puedeRecordar?`<a class="contact contact-amber" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,'recordar'))}" target="_blank" rel="noopener">${WA_SVG} Recordar pago al inquilino</a>`:'';
+    const mailGar=(vencido&&dep.garantiaMail)?`<a class="contact contact-red" href="${mailtoGar(dep)}">${GMAIL_SVG} Avisar a la garantía</a>`:'';
     const efAj=ajusteDelMes(dep,ym);
     const infoChip=efAj?`<span class="chip-info" aria-hidden="true">i</span>`:'';
     const proxYm=shiftYm(ym,1);const avisoAj=(dep.ajustes||[]).find(a=>a.ym===proxYm);
@@ -259,7 +284,7 @@ function renderDuenos(){
         rows.push(`<div class="mini-row mini-row-transf"><div class="mr-info"><span class="mr-name">${esc(dep.nombre)}</span><span class="mr-amt" style="color:var(--muted)">sin cobrar todavía</span></div></div>`);
       }
     });
-    const wa=d.telefono?`<a class="contact" href="https://wa.me/${digits(d.telefono)}?text=${encodeURIComponent('Hola'+(d.nombre?' '+d.nombre:'')+'!')}" target="_blank" rel="noopener" aria-label="Abrir WhatsApp con ${esc(ownerName(d.id))}">💬 WhatsApp</a>`:'';
+    const wa=d.telefono?`<a class="contact" href="https://wa.me/${digits(d.telefono)}?text=${encodeURIComponent('Hola'+(d.nombre?' '+d.nombre:'')+'!')}" target="_blank" rel="noopener" aria-label="Abrir WhatsApp con ${esc(ownerName(d.id))}">${WA_SVG} WhatsApp</a>`:'';
     const transfBadge=cobrados?`<span class="owner-tag ${pendTransf?'tag-warn':'tag-ok'}">${cobrados-pendTransf}/${cobrados} transferido${cobrados===1?'':'s'}</span>`:'';
     const hayPend=(pendLiq.ARS>0||pendLiq.USD>0);
     const heroCls=hayPend?'liq-hero pend':(cobrados?'liq-hero done':'liq-hero none');
@@ -281,6 +306,16 @@ function renderDuenos(){
   el.innerHTML=any?html:empty('&#128101;','Los dueños todavía no tienen deptos asignados.','Asignalos desde “Deptos”.');
 }
 function montoTransfer(dep,m){m=m||ym;const rent=alquilerEnMes(dep,m);const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;const cell=(state.pagos[m]||{})[dep.id]||{};const desc=cell.transfDesc||0;return Math.max(0,rent-c-desc);}
+
+// SVG logos para botones de contacto
+const WA_SVG=`<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.531 5.849L.073 23.629a.75.75 0 0 0 .92.92l5.757-1.463A11.944 11.944 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.717 9.717 0 0 1-4.953-1.353l-.355-.211-3.668.932.949-3.542-.232-.366A9.712 9.712 0 0 1 2.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>`;
+const GMAIL_SVG=`<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/></svg>`;
+
+function marcarAjusteNotificado(depId){
+  const m=ymNow();if(!state.pagos[m])state.pagos[m]={};if(!state.pagos[m][depId])state.pagos[m][depId]={alq:false,exp:false,ser:false};
+  state.pagos[m][depId].ajusteNotificado=true;
+  save();renderDashboard();toast('Marcado como notificado');
+}
 function openTransferir(depId){
   const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;
   const cell=(state.pagos[ym]||{})[depId]||{};const yaHecho=!!cell.transf;const desc=cell.transfDesc||0;
@@ -317,6 +352,50 @@ function marcarTransfer(depId){
 function desmarcarTransfer(depId){if(!state.pagos[ym]||!state.pagos[ym][depId])return;const cell=state.pagos[ym][depId];cell.transf=false;delete cell.transfDesc;delete cell.transfFecha;save();closeSheet();render();toast('Transferencia desmarcada');}
 function msgTransfer(dep,monto){const dueno=owner(dep.duenoId);const nombre=dueno&&dueno.nombre?' '+dueno.nombre:'';return 'Hola'+nombre+'! Te transferí el alquiler de '+dep.nombre+' correspondiente a '+ymLabel(ym)+': '+curMoney(dep,monto)+'. Cualquier cosa avisame. ¡Saludos!'+firmaOrg();}
 
+function renderGarantes(){
+  const el=document.getElementById('view-garantes');
+  if(!el)return;
+  const alquilados=state.deptos.filter(d=>(d.estado||'alquilado')==='alquilado'&&d.garantiaEmpresa);
+  if(!alquilados.length){el.innerHTML=empty('🛡️','No hay garantías cargadas.','Al cargar una propiedad con inquilino podés indicar la empresa de garantía de caución.');return;}
+  const grupos={};
+  alquilados.forEach(dep=>{
+    const key=(dep.garantiaEmpresa||'').trim().toLowerCase();const label=dep.garantiaEmpresa.trim();
+    if(!grupos[key])grupos[key]={label,mail:dep.garantiaMail||'',deptos:[],reclamos:0,alqTotal:{ARS:0,USD:0}};
+    const cb=cobranza(dep);const enReclamo=cb.nivel==='critico';
+    if(enReclamo)grupos[key].reclamos++;
+    const rent=alquilerEnMes(dep);const cur=dep.moneda||'ARS';grupos[key].alqTotal[cur]+=rent;
+    grupos[key].deptos.push({dep,enReclamo,cb});
+    if(!grupos[key].mail&&dep.garantiaMail)grupos[key].mail=dep.garantiaMail;
+  });
+  let html='<div class="cards">';
+  Object.values(grupos).sort((a,b)=>b.deptos.length-a.deptos.length).forEach(g=>{
+    const total=g.deptos.length;const masaStr=dualStr(g.alqTotal);
+    const badge=g.reclamos?`<span class="gar-badge-red">${g.reclamos} en reclamo</span>`:`<span class="gar-badge-ok">${total} activo${total===1?'':'s'}</span>`;
+    const mailBtn=g.mail?`<a class="contact contact-red" href="mailto:${encodeURIComponent(g.mail)}" aria-label="Mail a ${esc(g.label)}">${GMAIL_SVG} ${esc(g.mail)}</a>`:'';
+    const filas=g.deptos.map(({dep,enReclamo})=>{
+      const pill=enReclamo?'pill-debt':'pill-ok';const pillTxt=enReclamo?'Atrasado':'Al día';
+      const rent=alquilerEnMes(dep);const mailReclamo=enReclamo&&dep.garantiaMail?`<a class="gar-action-mail" href="${mailtoGar(dep)}" aria-label="Avisar reclamo por ${esc(dep.nombre)}">${GMAIL_SVG} Avisar</a>`:'';
+      return `<div class="gar-row"><div class="gar-row-info"><span class="gar-row-name">${esc(dep.nombre)}</span><span class="gar-row-inq">${esc(dep.inquilino||'Sin inquilino')} · ${curMoney(dep,rent)}/mes</span></div><div class="gar-row-right"><span class="paid-pill ${pill}">${pillTxt}</span>${mailReclamo}</div></div>`;
+    }).join('');
+    const totalAct=g.deptos.filter(x=>!x.enReclamo).length;
+    const tasaReclamo=total?Math.round(g.reclamos/total*100):0;
+    const insightTasa=total>=3?`<div class="gar-insight">📊 Tasa de reclamo con <b>${esc(g.label)}</b>: <b>${tasaReclamo}%</b> (${g.reclamos} de ${total}). ${tasaReclamo>25?'⚠️ Relativamente alto — puede valer la pena revisar.':tasaReclamo>0?'Dentro de lo normal.':'Sin reclamos hasta ahora ✓'}</div>`:'';
+    html+=`<div class="card gar-card">
+      <div class="card-top"><div><div class="card-name">${esc(g.label)}</div><div class="card-sub">${masaStr} en alquileres cubiertos</div></div>${badge}</div>
+      <div class="gar-stats">
+        <div class="gar-stat"><div class="gar-stat-v">${total}</div><div class="gar-stat-k">propiedades</div></div>
+        <div class="gar-stat"><div class="gar-stat-v">${totalAct}</div><div class="gar-stat-k">al día</div></div>
+        <div class="gar-stat ${g.reclamos?'red':''}"><div class="gar-stat-v">${g.reclamos}</div><div class="gar-stat-k">en reclamo</div></div>
+        <div class="gar-stat"><div class="gar-stat-v">${masaStr}</div><div class="gar-stat-k">masa cubierta</div></div>
+      </div>
+      ${insightTasa}
+      <div class="gar-list">${filas}</div>
+      ${mailBtn}
+    </div>`;
+  });
+  html+='</div>';el.innerHTML=html;
+}
+
 function renderAlquileres(){
   const el=document.getElementById('view-alquileres');
   let html='';
@@ -352,7 +431,7 @@ function renderAlquileres(){
   };
   const seccion=(titulo,arr,foco)=>{if(!arr.length)return '';return `<h2 class="section">${titulo}</h2><div class="cards">${arr.map(x=>card(x,foco)).join('')}</div>`;};
 
-  if(state.deptos.length===0){el.innerHTML=empty('&#128273;','Todavía no cargaste departamentos.','Cargalos en la pestaña “Deptos”.');return;}
+  if(state.deptos.length===0){el.innerHTML=empty('&#128273;','Todavía no cargaste propiedades.','Cargalos en la pestaña “Deptos”.');return;}
   html+=seccion('🔴 Sin alquilar',sinAlquilar,false);
   html+=seccion('🟠 Vencen pronto (3 meses)',vencenPronto,true);
   html+=seccion('🟢 El resto',resto,true);
@@ -363,8 +442,8 @@ function setPublicando(id,v){const dep=state.deptos.find(d=>d.id===id);dep.publi
 
 function renderDeptos(){
   const el=document.getElementById('view-deptos');
-  let html=`<div class="add-fab"><button class="btn btn-primary" onclick="openDepto()">+ Agregar departamento</button></div>`;
-  if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus departamentos.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
+  let html=`<div class="add-fab"><button class="btn btn-primary" onclick="openDepto()">+ Agregar propiedad</button></div>`;
+  if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus propiedades.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
   const grupos={};state.deptos.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
   Object.keys(grupos).forEach(oid=>{
     html+=`<h2 class="section-name">${esc(ownerName(oid))}</h2><div class="cards">`;
@@ -449,7 +528,6 @@ function renderDashboard(){
   const gestAct=base.filter(d=>activoEnMes(d,now)&&d.modalidad!=='dueno');
   const adminCount=gestAct.length;
   const histAll=gestAct.map(d=>historialPago(d)).filter(h=>h.n>0);
-  const diaProm=histAll.length?Math.round(histAll.reduce((a,b)=>a+(b.prom||0),0)/histAll.length):null;
   const puntualesPct=histAll.length?Math.round(histAll.filter(h=>badgePagador(h).txt==='Puntual').length/histAll.length*100):null;
   let cobradosMes=0;gestAct.forEach(d=>{const pg=(state.pagos[now]||{})[d.id]||{};if(pg.alq)cobradosMes++;});
   const tasaCobro=adminCount?Math.round(cobradosMes/adminCount*100):0;
@@ -460,7 +538,6 @@ function renderDashboard(){
     ${dstat('Masa administrada',heroMoney(masa),'alquileres bajo tu gestión','')}
     ${dstat('Vencen ≤3m',venc90.length,venc90.length?'renovar o publicar':'sin urgencias',venc90.length?'warn':'ok')}
     ${dstat('Morosidad',morosos,morosos?dualStr(pendiente)+' sin cobrar':'todo al día',morosos?'bad':'ok')}
-    ${dstat('Día prom. de pago',diaProm!=null?('día '+diaProm):'—','del alquiler cada mes',diaProm==null?'':(diaProm<=10?'ok':diaProm<=15?'warn':'bad'))}
     ${dstat('Comisión media',comProm.toFixed(1)+'%','de tu cartera','')}
     ${dstat('Cobro del mes',tasaCobro+'%',cobradosMes+' de '+adminCount+' ya pagaron',tasaCobro>=90?'ok':tasaCobro>=60?'warn':'bad')}
     ${puntualesPct!=null?dstat('Inquilinos puntuales',puntualesPct+'%','pagan a tiempo',puntualesPct>=70?'ok':puntualesPct>=40?'warn':'bad'):''}
@@ -485,6 +562,15 @@ function renderDashboard(){
       html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(ownerName(r.id))}</span><span class="dash-row-val">${fmtMon(cur,r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${n} ${n===1?'depto':'deptos'}</div></div>`;});
     html+='</div>';
   });
+  // ── Alertas de ajuste sin notificar (solo si ya pasó el día 20) ─────────────
+  const proxYm=shiftYm(now,1);
+  const alertasAjuste=diaHoy()>20?base.filter(d=>{
+    if((d.estado||'alquilado')==='vacio'||!d.ajusteMeses)return false;
+    const aj=(d.ajustes||[]).find(a=>a.ym===proxYm);if(!aj)return false;
+    const cell=(state.pagos[now]||{})[d.id]||{};
+    return !cell.ajusteNotificado;
+  }):[];
+
   // Alertas accionables
   const tips=[];
   const vacSinPub=vacios.filter(d=>!d.publicando).length;
@@ -495,7 +581,21 @@ function renderDashboard(){
   const bajaCom=gAct.filter(d=>(d.comisionPct||0)<comProm-2).length;
   if(bajaCom)tips.push(`<b>${bajaCom} ${bajaCom===1?'depto tiene':'deptos tienen'}</b> comisión por debajo de tu promedio — oportunidad de renegociar.`);
   if(comHist.ARS||comHist.USD)tips.push(`Comisión histórica ya ganada en tus contratos: <b>${dualStr(comHist)}</b>.`);
-  if(tips.length){html+='<h2 class="section">Para decidir</h2>'+tips.map(t=>`<div class="dash-tip">💡 ${t}</div>`).join('');}
+
+  const hayAlertas=alertasAjuste.length>0||tips.length>0;
+  if(hayAlertas){
+    html+='<h2 class="section">Para decidir</h2>';
+    // Ajustes sin notificar primero (más urgentes)
+    alertasAjuste.forEach(d=>{
+      const aj=(d.ajustes||[]).find(a=>a.ym===proxYm);if(!aj)return;
+      const waUrl=d.telInquilino?'https://wa.me/'+digits(d.telInquilino)+'?text='+encodeURIComponent(msgAumento(d,aj)):'';
+      const waBtn=waUrl
+        ?`<a class="btn-alerta btn-alerta-wa" href="${waUrl}" target="_blank" rel="noopener" onclick="marcarAjusteNotificado('${d.id}')" aria-label="Enviar WhatsApp de aumento a ${esc(d.inquilino||d.nombre)}">${WA_SVG} Enviar WhatsApp</a>`
+        :`<span class="btn-alerta btn-alerta-wa disabled">Sin teléfono cargado</span>`;
+      html+=`<div class="dash-alert"><div class="dash-alert-body"><span class="dash-alert-ico">⚠️</span><div><b>Ajuste pendiente: ${esc(d.nombre)}</b><br>Tiene un aumento del <b>${aj.pct.toFixed(1)}%</b> en ${ymLabel(proxYm)} (${curMoney(d,aj.nuevo)}) y aún no se le notificó al inquilino.</div></div><div class="dash-alert-actions">${waBtn}<button class="btn-alerta btn-alerta-ghost" onclick="marcarAjusteNotificado('${d.id}')" aria-label="Marcar como ya notificado sin abrir WhatsApp">Ya le avisé</button></div></div>`;
+    });
+    tips.forEach(t=>{html+=`<div class="dash-tip">💡 ${t}</div>`;});
+  }
 
   // Comportamiento de pago (a quién apurar)
   const comp=base.filter(d=>(d.estado||'alquilado')==='alquilado'&&activoEnMes(d,now)).map(d=>({d,h:historialPago(d)})).filter(x=>x.h.n>0).sort((a,b)=>(b.h.prom||0)-(a.h.prom||0));
@@ -574,14 +674,14 @@ function openDepto(id){
   const o=dep?owner(dep.duenoId):null;
   const dl=[...new Set(state.duenos.map(x=>(x.apellido||x.nombre||'').trim()).filter(Boolean))].map(v=>`<option value="${esc(v)}"></option>`).join('');
   openSheet(`
-    <h3>${dep?'Editar departamento':'Nuevo departamento'}</h3>
+    <h3>${dep?'Editar propiedad':'Nueva propiedad'}</h3>
 
-    <div class="form-sec">Estado del departamento</div>
+    <div class="form-sec">Estado de la propiedad</div>
     <div class="seg" id="f_est">
       <button type="button" class="${estSel==='alquilado'?'on':''}" onclick="pickEstado('alquilado')">Alquilado</button>
       <button type="button" class="${estSel==='vacio'?'on':''}" onclick="pickEstado('vacio')">Vacío</button></div>
 
-    <div class="form-sec">Detalle del departamento</div>
+    <div class="form-sec">Detalle de la propiedad</div>
     <div class="row2">
       <div class="field"><label for="f_calle">Calle</label><input id="f_calle" placeholder="Ej: Av. Corrientes" value="${dep?esc(dep.calle||''):''}"></div>
       <div class="field"><label for="f_num">Número</label><input id="f_num" inputmode="numeric" placeholder="Ej: 1234" value="${dep?esc(dep.numero||''):''}"></div></div>
@@ -815,7 +915,7 @@ function msgAumento(dep,aj){const n=dep.ajusteMeses||3;const meses=(aj.vals||[])
 function cartelAjustes(list){
   const cards=list.map(a=>{
     const filas=(a.vals||[]).map(x=>`<div class="liq-line"><span>Inflación ${ymLabel(x.ym)}</span><span>${x.val.toFixed(1)}%</span></div>`).join('');
-    const wa=a.dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none;margin-top:8px" href="https://wa.me/${digits(a.dep.telInquilino)}?text=${encodeURIComponent(msgAumento(a.dep,{pct:a.pct,nuevo:a.nuevo,ym:a.ym}))}" target="_blank" rel="noopener">💬 Informar al inquilino</a>`:'<div class="sub" style="text-align:center;margin-top:8px">Cargá el WhatsApp del inquilino para informarle.</div>';
+    const wa=a.dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none;margin-top:8px" href="https://wa.me/${digits(a.dep.telInquilino)}?text=${encodeURIComponent(msgAumento(a.dep,{pct:a.pct,nuevo:a.nuevo,ym:a.ym}))}" target="_blank" rel="noopener">${WA_SVG} Informar al inquilino</a>`:'<div class="sub" style="text-align:center;margin-top:8px">Cargá el WhatsApp del inquilino para informarle.</div>';
     return `<div class="card" style="box-shadow:none;border:1px solid var(--line)"><div class="card-name">${esc(a.dep.nombre)}</div>
       <div class="sub" style="margin-top:2px">Rige a partir de ${ymLabel(a.ym)}</div>
       <div class="liq-line tot" style="margin-top:6px"><span>Aumento ${a.pct.toFixed(1)}%</span><span class="pos">${curMoney(a.dep,a.anterior)} → ${curMoney(a.dep,a.nuevo)}</span></div>
@@ -831,7 +931,7 @@ function openAjusteInfo(depId,ajYm){
   const n=dep.ajusteMeses||3;const nominal=aj.nuevo-aj.anterior;
   const filas=(aj.vals||[]).map(x=>`<div class="liq-line"><span>Inflación ${ymLabel(x.ym)}</span><span>${x.val.toFixed(1)}%</span></div>`).join('');
   const esFuturo=cmpYm(aj.ym,ymNow())>0;
-  const wa=dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(msgAumento(dep,aj))}" target="_blank" rel="noopener">💬 ${esFuturo?'Avisar el aumento al inquilino':'Informar al inquilino'}</a>`:`<div class="sub" style="text-align:center">Cargá el WhatsApp del inquilino para poder informarle.</div>`;
+  const wa=dep.telInquilino?`<a class="btn btn-primary" style="text-decoration:none" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(msgAumento(dep,aj))}" target="_blank" rel="noopener">${WA_SVG} ${esFuturo?'Avisar el aumento al inquilino':'Informar al inquilino'}</a>`:`<div class="sub" style="text-align:center">Cargá el WhatsApp del inquilino para poder informarle.</div>`;
   const mesesTxt=(aj.vals||[]).map(x=>ymLabel(x.ym)).join(', ');
   openSheet(`<div style="text-align:center"><div style="font-size:38px">📈</div><h3 style="margin-top:6px">Aumento por IPC</h3><p class="hint">${esc(dep.nombre)} · rige a partir de <b>${ymLabel(aj.ym)}</b></p></div>
     <div class="aviso-aumento" style="cursor:default">${esFuturo?'📣 Avisale ahora al inquilino: este aumento se aplica el mes que viene ('+ymLabel(aj.ym)+'), usando el IPC recién publicado de '+mesesTxt+'.':'Este aumento ya rige este mes. Se calculó con el IPC de '+mesesTxt+'.'}</div>
@@ -1040,7 +1140,7 @@ function obSteps(){
     {emoji:'📅',title:'Mes',text:'Tu tablero del mes. Con un toque marcás quién pagó <b>alquiler</b>, <b>expensas</b> y <b>servicios</b>. Verde = pagó, rojo = debe. Arriba ves cuánto cobraste, cuánto liquidar y tu comisión.'},
     {emoji:'👥',title:'Dueños',text:'Te calcula solo cuánto le tenés que <b>liquidar a cada dueño</b> y cuánto es <b>tu comisión</b>. Si un dueño te debe a vos, también te lo marca.'},
     {emoji:'🔑',title:'Nuevos',text:'Te <b>avisa los contratos por vencer</b> para publicar a tiempo y no perder un mes sin alquilar. Y registrás los <b>alquileres nuevos</b> con su comisión de garantía.'},
-    {emoji:'🏢',title:'Deptos',text:'Acá <b>cargás cada departamento</b>: dueño, alquiler, comisión, contrato y cómo se cobra. <b>Empezá por esta pestaña.</b>'}];
+    {emoji:'🏢',title:'Propiedades',text:'Acá <b>cargás cada propiedad</b>: dueño, alquiler, comisión, contrato y cómo se cobra. <b>Empezá por esta pestaña.</b>'}];
   return s;
 }
 function openOnboarding(tourOnly){obTourOnly=tourOnly;obStep=tourOnly?1:0;renderOnboarding();}
