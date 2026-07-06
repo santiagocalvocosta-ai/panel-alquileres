@@ -127,12 +127,36 @@ function goToday(){ym=ymNow();render();toast('Mes actual');}
 
 function render(){
   document.getElementById('monthLabel').innerHTML=ymLabel(ym);
+  renderMonthBarDesktop();
   if(currentTab==='mes')renderMes();
   if(currentTab==='deptos')renderDeptos();
   if(currentTab==='duenos')renderDuenos();
   if(currentTab==='garantes')renderGarantes();
   if(currentTab==='alquileres')renderAlquileres();
   if(currentTab==='dashboard')renderDashboard();
+}
+// Barra de meses estilo línea de tiempo (solo visible en desktop vía CSS).
+// Solo inyección visual: reutiliza helpers de fecha existentes, no cambia la lógica.
+function pickMonth(v){ym=v;render();}
+function renderMonthBarDesktop(){
+  const cont=document.getElementById('monthBarDesktop');if(!cont)return;
+  const now=ymNow();
+  const meses=[now,shiftYm(now,-1),shiftYm(now,-2)];
+  const capitalize=s=>s.charAt(0).toUpperCase()+s.slice(1);
+  const etiqueta=v=>{const[y,m]=v.split('-');return v===now?'Este mes':capitalize(MESES[+m-1]);};
+  let btns=meses.map(v=>`<button type="button" class="mbd-pill ${ym===v?'on':''}" onclick="pickMonth('${v}')">${etiqueta(v)}</button>`).join('');
+  // Si el mes visible no es ninguno de los tres, se agrega como pill activa extra
+  if(!meses.includes(ym)){btns+=`<button type="button" class="mbd-pill on" onclick="pickMonth('${ym}')">${capitalize(MESES[+ym.split('-')[1]-1])+' '+ym.split('-')[0]}</button>`;}
+  btns+=`<button type="button" class="mbd-hist" onclick="openHistorial()" aria-label="Ver historial de meses">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+    Historial</button>`;
+  cont.innerHTML=btns;
+}
+function openHistorial(){
+  const now=ymNow();
+  let items='';
+  for(let i=0;i<18;i++){const v=shiftYm(now,-i);const[y,m]=v.split('-');const lbl=(i===0?'Este mes · ':'')+MESES[+m-1].charAt(0).toUpperCase()+MESES[+m-1].slice(1)+' '+y;items+=`<button type="button" class="hist-item ${ym===v?'on':''}" onclick="pickMonth('${v}');closeSheet();">${lbl}${ym===v?' ✓':''}</button>`;}
+  openSheet(`<h3>Elegí un mes</h3><div class="hist-list">${items}</div>`);
 }
 
 function renderMes(){
@@ -392,7 +416,7 @@ function renderGarantes(){
         <div class="gar-stat"><div class="gar-stat-v">${masaStr}</div><div class="gar-stat-k">masa cubierta</div></div>
       </div>
       ${insightTasa}
-      <div class="gar-list">${filas}</div>
+      <details class="gar-details"><summary>Ver detalle de las propiedades (${total})</summary><div class="gar-list">${filas}</div></details>
       ${mailBtn}
     </div>`;
   });
