@@ -18,7 +18,10 @@
   <div class="wrap">
     <div class="head-row">
       <div class="head-title"><span class="dot"></span><span id="headTitle">Este mes</span></div>
-      <button class="icon-btn icon-btn-mobile" onclick="openSettings()" aria-label="Ajustes">&#9881;</button>
+      <div class="head-actions">
+        <span id="saveStatus" class="save-status" role="status" aria-live="polite"></span>
+        <button class="icon-btn icon-btn-mobile" onclick="openSettings()" aria-label="Ajustes">&#9881;</button>
+      </div>
     </div>
     <div class="month-bar" id="monthBar">
       <button onclick="changeMonth(-1)" aria-label="Mes anterior">&#8249;</button>

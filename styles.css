@@ -54,6 +54,8 @@
   .alert .go{font-size:18px;color:var(--amber)}
   .alert-red{background:var(--red-soft);border-color:#f2c4cd;cursor:default}
   .alert-red .txt{color:var(--red)}
+  .alert.on{background:var(--green-soft);border-color:#cfe8dc}
+  .alert.on .txt,.alert.on .go{color:var(--green)}
 
   .controls{display:flex;gap:8px;margin:14px 0 8px}
   .controls input,.controls select{flex:1;min-width:0;padding:11px 13px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink)}
@@ -70,6 +72,7 @@
   .card-name{font-size:16px;font-weight:700;letter-spacing:-.01em}
   .card-sub{font-size:13px;color:var(--muted);margin-top:1px}
   .owner-tag{font-size:11px;font-weight:600;color:var(--green);background:var(--green-soft);padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .owner-meta{display:none}
   .flow-tag{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
   .flow-pasa{color:var(--blue);background:#e7eef7} .flow-directo{color:var(--muted);background:#eef1ef}
 
@@ -443,7 +446,7 @@
     }
     #view-mes .card .card-top>div{flex:1;min-width:0}
     #view-mes .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #view-mes .card .card-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+    #view-mes .card .card-sub{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
     #view-mes .card .card-top .paid-pill{flex-shrink:0;margin:0;font-size:10px;padding:2px 8px}
     #view-mes .card .chips{
       display:grid;grid-template-columns:subgrid;grid-column:3/6;gap:0;margin:0;
@@ -455,7 +458,7 @@
       transition:background .1s;
     }
     #view-mes .card .chips .chip .lbl{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#94a3b8;margin-bottom:2px}
-    #view-mes .card .chips .chip .amt{font-size:12.5px;font-weight:700;color:var(--ink)}
+    #view-mes .card .chips .chip .amt{font-size:13px;font-weight:700;color:var(--ink)}
     #view-mes .card .chips .chip .mk{font-size:10px;font-weight:700;margin-top:2px;color:var(--red)}
     #view-mes .card .chips .chip.paid{background:rgba(15,107,79,.08)}
     #view-mes .card .chips .chip.paid .lbl{color:rgba(15,107,79,.55)}
@@ -484,7 +487,7 @@
     }
     #view-deptos .card .card-top>div:first-child{min-width:0;overflow:hidden}
     #view-deptos .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #view-deptos .card .card-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+    #view-deptos .card .card-sub{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
     #view-deptos .card .estado-badge{grid-column:2;grid-row:1;justify-self:start;margin:0 8px}
     #view-deptos .card .liq-line{
       grid-column:3;grid-row:1;border:none;padding:0 12px;font-size:11.5px;
@@ -509,7 +512,7 @@
     }
     #view-alquileres .card .card-top .estado-badge{grid-column:unset}
     #view-alquileres .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #view-alquileres .card .card-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+    #view-alquileres .card .card-sub{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
     #view-alquileres .card .foco-venc{
       grid-column:2;grid-row:1;margin:0;padding:0 12px;font-size:12px;font-weight:600;
     }
@@ -521,19 +524,26 @@
     }
     #view-alquileres .card .sheet-actions .btn-sm{padding:6px 11px;font-size:11.5px;min-height:34px}
 
-    /* ── GARANTES: tarjetas separadas con espacio, detalle colapsable ── */
+    /* ── GARANTES: una empresa por fila, layout horizontal que llena el ancho ── */
     #view-garantes .cards{
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));
-      gap:18px;background:transparent;box-shadow:none;overflow:visible;margin-bottom:22px;
+      display:flex;flex-direction:column;gap:14px;
+      background:transparent;box-shadow:none;overflow:visible;margin-bottom:22px;
     }
     #view-garantes .card{
-      padding:18px 20px;display:block;background:#fff;border-radius:14px;
-      box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 14px rgba(0,0,0,.04);
-      border-bottom:none;
+      display:grid;
+      grid-template-columns:minmax(230px,1.5fr) 3fr auto;
+      grid-template-areas:"head stats mail" "insight insight insight" "details details details";
+      align-items:center;column-gap:28px;row-gap:10px;
+      padding:16px 22px;background:#fff;border-radius:14px;
+      box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 12px rgba(0,0,0,.04);border-bottom:none;
     }
     #view-garantes .card:hover{background:#fff}
-    #view-garantes .card .card-top{margin-bottom:12px}
-    #view-garantes .gar-stats{grid-template-columns:repeat(4,1fr);margin:0 0 12px}
+    #view-garantes .card .card-top{grid-area:head;margin:0;align-items:center;gap:12px}
+    #view-garantes .gar-stats{grid-area:stats;grid-template-columns:repeat(4,1fr);margin:0;gap:10px}
+    #view-garantes .gar-stat{background:#f8fafc}
+    #view-garantes .gar-insight{grid-area:insight;margin:0}
+    #view-garantes .gar-details{grid-area:details;margin:0;border-top:1px solid #f1f5f9;padding-top:4px}
+    #view-garantes .card>.contact{grid-area:mail;justify-self:end;margin:0;white-space:nowrap}
 
     /* ── DUEÑOS: tarjetas separadas, detalle full-width legible ──── */
     #view-duenos .cards{
@@ -566,6 +576,18 @@
     #view-duenos .card .mini-list{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:0 32px}
     #view-duenos .card .mini-row-transf{padding:11px 0}
     #view-duenos .card>.contact{margin:0 24px 18px}
+    /* Meta bajo el nombre del dueño: llena el ancho aunque no haya cobros aún */
+    #view-duenos .owner-meta{display:block;font-size:12.5px;color:var(--muted);font-weight:600;margin-top:4px}
+    /* Resumen de liquidación en 3 columnas para que no quede vacío horizontalmente */
+    #view-duenos .liq-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:2px 0 6px}
+    #view-duenos .liq-summary .liq-line{
+      flex-direction:column;align-items:flex-start;gap:3px;
+      background:#f8fafc;border:1px solid #eef2f6;border-radius:10px;padding:12px 14px;margin:0;
+    }
+    #view-duenos .liq-summary .liq-line span:first-child{font-size:11px;color:var(--muted);font-weight:600}
+    #view-duenos .liq-summary .liq-line span:last-child{font-size:16px;font-weight:800;color:var(--ink)}
+    #view-duenos .liq-summary .liq-line.tot{border:1px solid #cfe8dc;background:var(--green-soft);margin:0;padding:12px 14px}
+    #view-duenos .liq-summary .liq-line.tot span:last-child{color:var(--green)}
 
     /* ── DASHBOARD: cards sin cambio de layout ──────────────────── */
     #view-dashboard .card{display:block;padding:15px;margin-bottom:0;}
@@ -573,3 +595,62 @@
     @media (min-width:1440px){
     main{margin-right:auto}
   }
+
+  /* ── Indicador de guardado en el header (Guardando / Guardado / Sin conexión) ── */
+  .head-actions{display:flex;align-items:center;gap:10px}
+  .save-status{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:999px;white-space:nowrap;opacity:0;transition:opacity .25s;color:#eafff5;background:rgba(255,255,255,.16)}
+  .save-status.saving,.save-status.saved{opacity:1}
+  .save-status.offline{opacity:1;color:#fff;background:var(--amber)}
+
+  /* ── Letra más grande (accesibilidad; público 50+) — activable en Ajustes ── */
+  body.big-text .head-title{font-size:20px}
+  body.big-text .month-label,body.big-text .mbd-pill,body.big-text .mbd-hist{font-size:14.5px}
+  body.big-text .tab{font-size:15.5px}
+  body.big-text .subtab{font-size:14px}
+  body.big-text .card-name{font-size:16px}
+  body.big-text .card-sub{font-size:14px}
+  body.big-text .stat .k{font-size:13px}
+  body.big-text .stat .v{font-size:20px}
+  body.big-text .alert .txt,body.big-text .adj-banner .txt{font-size:14.5px}
+  body.big-text .progress{font-size:13.5px}
+  body.big-text .liq-line{font-size:15px}
+  body.big-text .liq-line.tot{font-size:17px}
+  body.big-text .liq-hero-v{font-size:28px}
+  body.big-text .liq-hero-k{font-size:13px}
+  body.big-text .liq-hero-sub{font-size:13.5px}
+  body.big-text .chip .lbl{font-size:12px}
+  body.big-text .chip .amt{font-size:15px}
+  body.big-text .chip .mk{font-size:12px}
+  body.big-text .estado-badge,body.big-text .paid-pill,body.big-text .owner-tag,body.big-text .gar-badge-ok,body.big-text .gar-badge-red{font-size:12.5px}
+  body.big-text .owner-meta{font-size:13.5px}
+  body.big-text .dstat-v{font-size:23px}
+  body.big-text .dstat-k,body.big-text .dstat-sub{font-size:12.5px}
+  body.big-text .dash-hero-v{font-size:38px}
+  body.big-text .dash-hero-k,body.big-text .dash-hero-sub{font-size:13.5px}
+  body.big-text .dash-row-top{font-size:15.5px}
+  body.big-text .dash-row-sub{font-size:13px}
+  body.big-text .dash-tip{font-size:14.5px}
+  body.big-text .gar-row-name{font-size:15px}
+  body.big-text .gar-row-inq{font-size:13px}
+  body.big-text .gar-stat-v{font-size:20px}
+  body.big-text .gar-stat-k{font-size:12px}
+  body.big-text .gar-insight{font-size:13.5px}
+  body.big-text .contact,body.big-text .btn-alerta{font-size:13.5px}
+  body.big-text .field label,body.big-text .form-sec{font-size:14px}
+  body.big-text .hint,body.big-text .sub{font-size:13.5px}
+  /* Grilla de alta densidad en desktop: batir las reglas específicas de cada vista */
+  body.big-text #view-mes .card .card-name,
+  body.big-text #view-deptos .card .card-name,
+  body.big-text #view-alquileres .card .card-name{font-size:15px}
+  body.big-text #view-mes .card .card-sub,
+  body.big-text #view-deptos .card .card-sub,
+  body.big-text #view-alquileres .card .card-sub{font-size:13px}
+  body.big-text #view-mes .card .chips .chip .amt{font-size:14.5px}
+  body.big-text #view-mes .card .chips .chip .lbl{font-size:11px}
+  body.big-text #view-deptos .card .liq-line,
+  body.big-text #view-alquileres .card .foco-venc{font-size:13.5px}
+  body.big-text #view-duenos .card .card-name{font-size:18px}
+  body.big-text #view-duenos .liq-summary .liq-line span:first-child{font-size:12.5px}
+  body.big-text #view-duenos .liq-summary .liq-line span:last-child{font-size:18px}
+  body.big-text #view-duenos .card .liq-hero-v{font-size:22px}
+  body.big-text #view-garantes .card .card-name{font-size:17px}

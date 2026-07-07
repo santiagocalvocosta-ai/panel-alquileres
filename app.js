@@ -14,7 +14,7 @@ let sbUser = null, remoteReady = false;
 const KEY='panel_alquileres_v1';
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 let state=load(), currentTab='mes', ym=ymNow();
-let mesQuery='', mesOwner='all', dashOwner='all', ownerFilterCtx='mes';
+let mesQuery='', mesOwner='all', mesSoloImpagos=false, dashOwner='all', ownerFilterCtx='mes';
 
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.duenos){if(!s.config)s.config={onboarded:s.deptos&&s.deptos.length>0,organizador:{nombre:'',tel:''},pin:'',cobranza:{diasRecordar:5,diasReclamar:10}};if(!s.config.organizador)s.config.organizador={nombre:'',tel:''};if(!s.config.cobranza)s.config.cobranza={diasRecordar:5,diasReclamar:10};(s.deptos||[]).forEach(d=>{if(d.estado==='publicado'){d.estado='vacio';d.publicando=true;}d.expensas=true;if(!d.diaVencimiento)d.diaVencimiento=10;if(!d.moneda)d.moneda='ARS';if(!Array.isArray(d.serviciosList)){d.serviciosList=d.servicios?['agua','luz','gas']:[];}d.servicios=d.serviciosList.length>0;
       d.inqApellido=capName(d.inqApellido);d.inqNombre=capName(d.inqNombre);if(d.inqApellido||d.inqNombre)d.inquilino=(d.inqApellido+(d.inqNombre?', '+d.inqNombre:'')).trim();});
@@ -25,15 +25,25 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.duenos
     return s;}}catch(e){}return {duenos:[],deptos:[],pagos:{},alquileres:[],config:{onboarded:false,organizador:{nombre:'',tel:''},pin:'',cobranza:{diaVencimiento:10}}};}
 function save(){
   try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){console.warn('localStorage write failed:',e);}
+  setSaveStatus(navigator.onLine?'saving':'offline');
   pushRemote();
+}
+function setSaveStatus(st){
+  const el=document.getElementById('saveStatus');if(!el)return;
+  el.className='save-status '+st;
+  el.textContent = st==='saving' ? 'Guardando…' : st==='offline' ? '⚠️ Sin conexión' : '✓ Guardado';
 }
 let pushT;
 function pushRemote(){
-  if(!sbUser||!remoteReady)return;
+  if(!sbUser||!remoteReady){if(!sbUser&&navigator.onLine)setSaveStatus('saved');return;}
   clearTimeout(pushT);
   pushT=setTimeout(async()=>{
-    try{await sb.from('panel_data').upsert({user_id:sbUser.id,data:state,updated_at:new Date().toISOString()});}
-    catch(e){console.warn('No se pudo guardar en la nube:',e);}
+    if(!navigator.onLine){setSaveStatus('offline');return;}
+    try{
+      const {error}=await sb.from('panel_data').upsert({user_id:sbUser.id,data:state,updated_at:new Date().toISOString()});
+      if(error)throw error;
+      setSaveStatus('saved');
+    }catch(e){console.warn('No se pudo guardar:',e);setSaveStatus('offline');}
   },700);
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -61,7 +71,7 @@ function setPago(deptoId,k){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pag
 function serviciosDe(dep){return (dep.serviciosList&&dep.serviciosList.length)?dep.serviciosList:(dep.servicios?['agua','luz','gas']:[]);}
 function servPagos(dep,m){m=m||ym;const cell=(state.pagos[m]||{})[dep.id]||{};const lista=serviciosDe(dep);const total=lista.length;if(!total)return{done:0,total:0,allPaid:true};let done=0;lista.forEach(k=>{const val=cell.serv?cell.serv[k]:(cell.ser===true);if(val)done++;});return{done,total,allPaid:done>=total};}
 function setServ(deptoId,k){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};const cell=state.pagos[ym][deptoId];if(!cell.serv){cell.serv={};if(cell.ser===true){const d0=state.deptos.find(d=>d.id===deptoId);serviciosDe(d0).forEach(x=>cell.serv[x]=true);}}cell.serv[k]=!cell.serv[k];const dep=state.deptos.find(d=>d.id===deptoId);cell.ser=servPagos(dep).allPaid;save();}
-function openServicios(depId){const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;const lista=serviciosDe(dep);if(!lista.length){toast('Este depto no tiene servicios cargados');return;}
+function openServicios(depId){const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;const lista=serviciosDe(dep);if(!lista.length){toast('Esta propiedad no tiene servicios cargados');return;}
   openSheet(`<h3>Servicios de ${esc(dep.nombre)}</h3><p class="hint">Marcá los que ya pagó el inquilino este mes (${ymLabel(ym)}).</p><div id="serv_rows"></div><button class="btn btn-primary" style="margin-top:12px" onclick="closeSheet();render()">Listo</button>`);
   refreshServSheet(depId);
 }
@@ -161,7 +171,7 @@ function openHistorial(){
 
 function renderMes(){
   const el=document.getElementById('view-mes');
-  if(state.deptos.length===0){el.innerHTML=empty('&#127968;','Todavía no cargaste propiedades.','Agregá el primero desde la pestaña “Deptos”.');return;}
+  if(state.deptos.length===0){el.innerHTML=empty('&#127968;','Todavía no cargaste propiedades.','Agregá el primero desde la pestaña “Propiedades”.');return;}
   const activos=state.deptos.filter(d=>activoEnMes(d));
   const cobrado={ARS:0,USD:0},faltaCobrar={ARS:0,USD:0},comTotal={ARS:0,USD:0};let alDia=0;
   activos.forEach(dep=>{
@@ -180,19 +190,23 @@ function renderMes(){
     <div class="stat"><div class="k">Tu comisión</div><div class="v" style="font-size:15px">${dualStr(comTotal)}</div></div>
   </div>`;
 
-  const pipe=pipeline();
-  if(pipe.length){html+=`<button class="alert" onclick="go('alquileres')"><span class="txt">⏳ ${pipe.length} ${pipe.length===1?'depto necesita':'deptos necesitan'} atención — vencimientos / disponibles</span><span class="go">›</span></button>`;}
+  // Seguimiento se enfoca en cobros: alerta sobre lo que falta cobrar (los vencimientos viven en Propiedades)
+  if(alqSinCobrar){
+    const activa=mesSoloImpagos;
+    html+=`<button class="alert${activa?' on':''}" onclick="toggleImpagos()" aria-pressed="${activa}"><span class="txt">${activa?'✓ Mostrando solo sin cobrar':'⚠️ '+alqSinCobrar+' '+(alqSinCobrar===1?'propiedad sin cobrar este mes':'propiedades sin cobrar este mes')}</span><span class="go">${activa?'ver todas':'›'}</span></button>`;
+  }
   let critCount=0;activos.forEach(d=>{if(cobranza(d).nivel==='critico')critCount++;});
   if(critCount){html+=`<div class="alert alert-red"><span class="txt">🔴 ${critCount} ${critCount===1?'pago crítico — corresponde reclamar a la garantía':'pagos críticos — corresponde reclamar a la garantía'}</span></div>`;}
 
   // Filtro de dueños: desplegable simple (cómodo con muchos dueños)
   const ownerFilter=ownerFilterBtn(mesOwner,'mes');
-  html+=`<div class="controls"><input id="mesSearch" placeholder="Buscar depto o inquilino…" value="${esc(mesQuery)}" oninput="onMesSearch(this.value)"></div>
+  html+=`<div class="controls"><input id="mesSearch" placeholder="Buscar propiedad o inquilino…" value="${esc(mesQuery)}" oninput="onMesSearch(this.value)"></div>
   ${ownerFilter}
   <div class="progress"><span>Al día ${alDia}/${activos.length}</span><span class="bar"><i style="width:${pct}%"></i></span><span>${pct}%</span></div>`;
 
   let list=activos.filter(dep=>{
     if(mesOwner!=='all'&&dep.duenoId!==mesOwner)return false;
+    if(mesSoloImpagos&&pagos(dep.id).alq)return false;
     if(mesQuery){const q=mesQuery.toLowerCase();if(!((dep.nombre||'').toLowerCase().includes(q)||(dep.inquilino||'').toLowerCase().includes(q)))return false;}
     return true;
   });
@@ -236,13 +250,14 @@ function renderMes(){
   const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
   oidsOrdenados.forEach(oid=>{
     const deps=grupos[oid].sort((a,b)=>{const sa=estaAlDia(a)?1:0,sb=estaAlDia(b)?1:0;return sa-sb||(a.nombre||'').localeCompare(b.nombre||'');});
-    html+=`<h2 class="section-name">${esc(ownerName(oid))} · ${deps.length} ${deps.length===1?'depto':'deptos'}</h2><div class="cards">`;
+    html+=`<h2 class="section-name">${esc(ownerName(oid))} · ${deps.length} ${deps.length===1?'propiedad':'propiedades'}</h2><div class="cards">`;
     deps.forEach(dep=>{html+=cardHtml(dep);});
     html+='</div>';
   });
   el.innerHTML=html;
 }
 function onMesSearch(v){mesQuery=v;renderMes();const i=document.getElementById('mesSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
+function toggleImpagos(){mesSoloImpagos=!mesSoloImpagos;renderMes();}
 function onMesOwner(v){mesOwner=v;renderMes();}
 function openRenovar(depId){
   const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;
@@ -291,12 +306,13 @@ function chip(dep,k,lbl,amt,paid,na,noAmount){if(na)return `<div class="chip na"
 
 function renderDuenos(){
   const el=document.getElementById('view-duenos');
-  if(state.duenos.length===0){el.innerHTML=empty('&#128101;','No hay dueños cargados.','Agregalos desde la pestaña “Deptos”.');return;}
+  if(state.duenos.length===0){el.innerHTML=empty('&#128101;','No hay dueños cargados.','Agregalos desde la pestaña “Propiedades”.');return;}
   let html='<div class="cards">',any=false;
   state.duenos.forEach(d=>{
     const deps=state.deptos.filter(x=>x.duenoId===d.id&&activoEnMes(x));if(deps.length===0)return;any=true;
-    const cobrado={ARS:0,USD:0},com={ARS:0,USD:0},neto={ARS:0,USD:0},pendLiq={ARS:0,USD:0};const rows=[];let pendTransf=0,cobrados=0;
+    const cobrado={ARS:0,USD:0},com={ARS:0,USD:0},neto={ARS:0,USD:0},pendLiq={ARS:0,USD:0},masa={ARS:0,USD:0};const rows=[];let pendTransf=0,cobrados=0,gestionables=0;
     deps.forEach(dep=>{const p=pagos(dep.id);const rent=alquilerEnMes(dep);const cur=dep.moneda||'ARS';const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;
+      if(dep.modalidad!=='dueno'){masa[cur]+=rent;gestionables++;}
       if(dep.modalidad==='dueno'){
         rows.push(`<div class="mini-row"><span>${esc(dep.nombre)} · directo</span><span>administra el dueño</span></div>`);
       }else if(p.alq){
@@ -316,21 +332,24 @@ function renderDuenos(){
     const hayPend=(pendLiq.ARS>0||pendLiq.USD>0);
     const heroCls=hayPend?'liq-hero pend':(cobrados?'liq-hero done':'liq-hero none');
     const heroTxt=hayPend?dualStr(pendLiq):(cobrados?'Todo liquidado':'Nada cobrado aún');
-    const heroSub=hayPend?`Le falta liquidar este mes${pendTransf?` · ${pendTransf} ${pendTransf===1?'depto':'deptos'} pendiente${pendTransf===1?'':'s'}`:''}`:(cobrados?'Ya le transferiste todo lo cobrado ✓':'Cuando cobres, vas a ver acá cuánto liquidarle');
+    const heroSub=hayPend?`Le falta liquidar este mes${pendTransf?` · ${pendTransf} ${pendTransf===1?'propiedad':'propiedades'} pendiente${pendTransf===1?'':'s'}`:''}`:(cobrados?'Ya le transferiste todo lo cobrado ✓':'Cuando cobres, vas a ver acá cuánto liquidarle');
+    const metaLine=`<div class="owner-meta">${dualStr(masa)} en alquileres · ${cobrados}/${gestionables} cobrado${gestionables===1?'':'s'}${(com.ARS||com.USD)?' · comisión '+dualStr(com):''}</div>`;
     html+=`<div class="card owner-card">
-      <div class="card-top"><div class="card-name">${esc(ownerName(d.id))}</div><span class="owner-tag">${deps.length} ${deps.length===1?'depto':'deptos'}</span></div>
+      <div class="card-top"><div><div class="card-name">${esc(ownerName(d.id))}</div>${metaLine}</div><span class="owner-tag">${deps.length} ${deps.length===1?'propiedad':'propiedades'}</span></div>
       <div class="${heroCls}"><div class="liq-hero-k">${hayPend?'💸 Falta liquidar':(cobrados?'✅ Al día':'—')}</div><div class="liq-hero-v">${heroTxt}</div><div class="liq-hero-sub">${heroSub}</div></div>
       <details class="liq-details"><summary>Ver detalle del mes ${transfBadge}</summary>
-        <div class="liq-line"><span>Alquileres cobrados (pasan por vos)</span><span>${dualStr(cobrado)}</span></div>
-        <div class="liq-line"><span>Tu comisión</span><span class="pos">${dualStr(com)}</span></div>
-        <div class="liq-line tot"><span>Total a liquidar (cobrado)</span><span>${dualStr({ARS:Math.max(0,neto.ARS),USD:Math.max(0,neto.USD)})}</span></div>
+        <div class="liq-summary">
+          <div class="liq-line"><span>Alquileres cobrados (pasan por vos)</span><span>${dualStr(cobrado)}</span></div>
+          <div class="liq-line"><span>Tu comisión</span><span class="pos">${dualStr(com)}</span></div>
+          <div class="liq-line tot"><span>Total a liquidar (cobrado)</span><span>${dualStr({ARS:Math.max(0,neto.ARS),USD:Math.max(0,neto.USD)})}</span></div>
+        </div>
         <div class="transf-head">Transferencias al dueño (${ymLabel(ym)})</div>
         <div class="mini-list">${rows.join('')}</div>
       </details>
       ${wa}</div>`;
   });
   html+='</div>';
-  el.innerHTML=any?html:empty('&#128101;','Los dueños todavía no tienen deptos asignados.','Asignalos desde “Deptos”.');
+  el.innerHTML=any?html:empty('&#128101;','Los dueños todavía no tienen propiedades asignadas.','Asignalos desde “Propiedades”.');
 }
 function montoTransfer(dep,m){m=m||ym;const rent=alquilerEnMes(dep,m);const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;const cell=(state.pagos[m]||{})[dep.id]||{};const desc=cell.transfDesc||0;return Math.max(0,rent-c-desc);}
 
@@ -456,6 +475,7 @@ function setPublicando(id,v){const dep=state.deptos.find(d=>d.id===id);dep.publi
 
 let deptosSubTab='propiedades';
 function setDeptosSubTab(v){deptosSubTab=v;renderDeptos();}
+function goVencimientos(){deptosSubTab='vencimientos';go('deptos');}
 
 function renderDeptos(){
   const el=document.getElementById('view-deptos');
@@ -475,6 +495,8 @@ function renderDeptos(){
   if(deptosSubTab==='vencimientos'){el.innerHTML=html+_alquileresHtml();return;}
 
   // === Vista: Propiedades ===
+  const pipe=pipeline();
+  if(pipe.length){html+=`<button class="alert" onclick="goVencimientos()"><span class="txt">⏳ ${pipe.length} ${pipe.length===1?'propiedad necesita':'propiedades necesitan'} atención — vencimientos / disponibles</span><span class="go">›</span></button>`;}
   html+=`<div class="add-fab"><button class="btn btn-primary" onclick="openDepto()">+ Agregar propiedad</button></div>`;
   if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus propiedades.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
   const grupos={};state.deptos.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
@@ -504,7 +526,7 @@ function renderDeptos(){
 
 function renderDashboard(){
   const el=document.getElementById('view-dashboard');
-  if(state.deptos.length===0){el.innerHTML=empty('&#128202;','Todavía no hay datos.','Cargá departamentos para ver tus métricas.');return;}
+  if(state.deptos.length===0){el.innerHTML=empty('&#128202;','Todavía no hay datos.','Cargá propiedades para ver tus métricas.');return;}
   const now=ymNow();
   const base=dashOwner==='all'?state.deptos:state.deptos.filter(d=>d.duenoId===dashOwner);
   const activos=base.filter(d=>activoEnMes(d,now));
@@ -566,7 +588,7 @@ function renderDashboard(){
   const tasaCobro=adminCount?Math.round(cobradosMes/adminCount*100):0;
 
   html+=`<h2 class="section">Números para mostrarle a los dueños</h2><div class="dash-grid">
-    ${dstat('Deptos administrados',adminCount,'que gestionás vos','')}
+    ${dstat('Propiedades administradas',adminCount,'que gestionás vos','')}
     ${dstat('Ocupación',ocupPct+'%',alquilados.length+' de '+base.length+' alquilados',ocupPct>=90?'ok':ocupPct>=70?'warn':'bad')}
     ${dstat('Masa administrada',heroMoney(masa),'alquileres bajo tu gestión','')}
     ${dstat('Vencen ≤3m',venc90.length,venc90.length?'renovar o publicar':'sin urgencias',venc90.length?'warn':'ok')}
@@ -580,7 +602,7 @@ function renderDashboard(){
   curs.forEach(cur=>{
     const rk=gestionados.filter(d=>activoEnMes(d,now)&&monOf(d)===cur).map(d=>({d,c:alquilerEnMes(d,now)*(d.comisionPct||0)/100})).sort((a,b)=>b.c-a.c);
     if(!rk.length||rk[0].c<=0)return;const maxC=rk[0].c;
-    html+='<h2 class="section">Deptos que más te generan'+(single?'':' · '+(cur==='USD'?'dólares':'pesos'))+'</h2><div class="card" style="padding:14px">';
+    html+='<h2 class="section">Propiedades que más te generan'+(single?'':' · '+(cur==='USD'?'dólares':'pesos'))+'</h2><div class="card" style="padding:14px">';
     rk.slice(0,6).forEach(r=>{const w=maxC>0?Math.round(r.c/maxC*100):0;
       html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(r.d.nombre)}</span><span class="dash-row-val">${fmtMon(cur,r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${esc(ownerName(r.d.duenoId))} · com. ${r.d.comisionPct||0}% · alq. ${fmtMon(cur,alquilerEnMes(r.d,now))}</div></div>`;});
     html+='</div>';
@@ -592,7 +614,7 @@ function renderDashboard(){
     if(!rkD.length||rkD[0].c<=0)return;const maxD=rkD[0].c;
     html+='<h2 class="section">Comisión por dueño'+(single?'':' · '+(cur==='USD'?'dólares':'pesos'))+'</h2><div class="card" style="padding:14px">';
     rkD.forEach(r=>{const w=maxD>0?Math.round(r.c/maxD*100):0;const n=state.deptos.filter(d=>d.duenoId===r.id&&d.modalidad!=='dueno'&&activoEnMes(d,now)&&monOf(d)===cur).length;
-      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(ownerName(r.id))}</span><span class="dash-row-val">${fmtMon(cur,r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${n} ${n===1?'depto':'deptos'}</div></div>`;});
+      html+=`<div class="dash-row"><div class="dash-row-top"><span class="dash-row-name">${esc(ownerName(r.id))}</span><span class="dash-row-val">${fmtMon(cur,r.c)}</span></div><div class="dash-bar"><i style="width:${w}%"></i></div><div class="dash-row-sub">${n} ${n===1?'propiedad':'propiedades'}</div></div>`;});
     html+='</div>';
   });
   // ── Alertas de ajuste sin notificar (solo si ya pasó el día 20) ─────────────
@@ -607,12 +629,12 @@ function renderDashboard(){
   // Alertas accionables
   const tips=[];
   const vacSinPub=vacios.filter(d=>!d.publicando).length;
-  if(vacSinPub)tips.push(`Tenés <b>${vacSinPub} ${vacSinPub===1?'depto vacío sin publicar':'deptos vacíos sin publicar'}</b> — no generan comisión, arrancá a publicarlos.`);
-  else if(vacios.length)tips.push(`Tus <b>${vacios.length} ${vacios.length===1?'depto vacío ya está publicándose':'deptos vacíos ya se están publicando'}</b> — seguí de cerca las visitas.`);
+  if(vacSinPub)tips.push(`Tenés <b>${vacSinPub} ${vacSinPub===1?'propiedad vacía sin publicar':'propiedades vacías sin publicar'}</b> — no generan comisión, arrancá a publicarlos.`);
+  else if(vacios.length)tips.push(`Tus <b>${vacios.length} ${vacios.length===1?'propiedad vacía ya está publicándose':'propiedades vacías ya se están publicando'}</b> — seguí de cerca las visitas.`);
   if(venc90.length)tips.push(`<b>${venc90.length} ${venc90.length===1?'contrato vence':'contratos vencen'}</b> en 3 meses — empezá a renovar o publicar.`);
-  if(morosos)tips.push(`<b>${morosos} ${morosos===1?'depto debe':'deptos deben'}</b> pagos este mes (${dualStr(pendiente)} sin cobrar) — mandá los recordatorios.`);
+  if(morosos)tips.push(`<b>${morosos} ${morosos===1?'propiedad debe':'propiedades deben'}</b> pagos este mes (${dualStr(pendiente)} sin cobrar) — mandá los recordatorios.`);
   const bajaCom=gAct.filter(d=>(d.comisionPct||0)<comProm-2).length;
-  if(bajaCom)tips.push(`<b>${bajaCom} ${bajaCom===1?'depto tiene':'deptos tienen'}</b> comisión por debajo de tu promedio — oportunidad de renegociar.`);
+  if(bajaCom)tips.push(`<b>${bajaCom} ${bajaCom===1?'propiedad tiene':'propiedades tienen'}</b> comisión por debajo de tu promedio — oportunidad de renegociar.`);
   if(comHist.ARS||comHist.USD)tips.push(`Comisión histórica ya ganada en tus contratos: <b>${dualStr(comHist)}</b>.`);
 
   const hayAlertas=alertasAjuste.length>0||tips.length>0;
@@ -662,16 +684,16 @@ function sparkline(serie,cur){
   let bars='',vlabels='';serie.forEach((s,i)=>{const pot=s.pot||s.val;const yTop=y(pot);const yConf=y(s.val);const cx=x(i)+bw2/2;const last=i===n-1;
     // proyectado (parte no cobrada) = de yTop a yConf, rayado/claro
     const projH=Math.max(0,yConf-yTop);
-    if(projH>0.5)bars+=`<rect x="${x(i).toFixed(1)}" y="${yTop.toFixed(1)}" width="${bw2.toFixed(1)}" height="${projH.toFixed(1)}" rx="2" fill="url(#proj)" stroke="#c9b27a" stroke-width="0.6"><title>${ymLabel(s.ym)}: proyectado ${fmtMon(cur||'ARS',pot)}</title></rect>`;
+    if(projH>0.5)bars+=`<rect x="${x(i).toFixed(1)}" y="${yTop.toFixed(1)}" width="${bw2.toFixed(1)}" height="${projH.toFixed(1)}" rx="2" fill="url(#proj)" stroke="#8fc3ab" stroke-width="0.6"><title>${ymLabel(s.ym)}: proyectado ${fmtMon(cur||'ARS',pot)}</title></rect>`;
     // confirmado (cobrado) = de yConf a base, verde
     const confH=Math.max(1,base-yConf);
     bars+=`<rect x="${x(i).toFixed(1)}" y="${yConf.toFixed(1)}" width="${bw2.toFixed(1)}" height="${confH.toFixed(1)}" rx="2" fill="${last?'#0f6b4f':'#7fbfa4'}"><title>${ymLabel(s.ym)}: cobrado ${fmtMon(cur||'ARS',s.val)}</title></rect>`;
-    if(pot>0)vlabels+=`<text x="${cx.toFixed(1)}" y="${(y(pot)-4).toFixed(1)}" font-size="8.5" font-weight="700" fill="${projH>0.5?'#8a5a0c':'#0f6b4f'}" text-anchor="middle">${compactMoney(pot,cur)}</text>`;
+    if(pot>0)vlabels+=`<text x="${cx.toFixed(1)}" y="${(y(pot)-4).toFixed(1)}" font-size="8.5" font-weight="700" fill="${projH>0.5?'#0b5540':'#0f6b4f'}" text-anchor="middle">${compactMoney(pot,cur)}</text>`;
   });
   const lab=i=>{const[y2,m2]=serie[i].ym.split('-');return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m2-1];};
   let labels='';serie.forEach((s,i)=>{labels+=`<text x="${(x(i)+bw2/2).toFixed(1)}" y="${H-16}" font-size="8" fill="#586860" text-anchor="middle">${lab(i)}</text>`;});
-  const legend=`<rect x="${pad}" y="${H-9}" width="9" height="9" rx="2" fill="#0f6b4f"></rect><text x="${pad+13}" y="${H-1.5}" font-size="8.5" fill="#586860">Confirmado (cobrado)</text><rect x="${pad+128}" y="${H-9}" width="9" height="9" rx="2" fill="url(#proj)" stroke="#c9b27a" stroke-width="0.6"></rect><text x="${pad+141}" y="${H-1.5}" font-size="8.5" fill="#586860">Proyectado (falta cobrar)</text>`;
-  const defs=`<defs><pattern id="proj" width="5" height="5" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#fbf1dd"></rect><line x1="0" y1="0" x2="0" y2="5" stroke="#e8c98a" stroke-width="2"></line></pattern></defs>`;
+  const legend=`<rect x="${pad}" y="${H-9}" width="9" height="9" rx="2" fill="#0f6b4f"></rect><text x="${pad+13}" y="${H-1.5}" font-size="8.5" fill="#586860">Confirmado (cobrado)</text><rect x="${pad+128}" y="${H-9}" width="9" height="9" rx="2" fill="url(#proj)" stroke="#8fc3ab" stroke-width="0.6"></rect><text x="${pad+141}" y="${H-1.5}" font-size="8.5" fill="#586860">Proyectado (falta cobrar)</text>`;
+  const defs=`<defs><pattern id="proj" width="5" height="5" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#dcefe6"></rect><line x1="0" y1="0" x2="0" y2="5" stroke="#0b5540" stroke-width="2"></line></pattern></defs>`;
   const resumen='Comisión mensual '+(cur==='USD'?'en dólares':'en pesos')+', últimos 12 meses, confirmada vs proyectada. '+serie.filter(s=>(s.pot||s.val)>0).map(s=>ymLabel(s.ym)+': cobrado '+fmtMon(cur||'ARS',s.val)+' de '+fmtMon(cur||'ARS',s.pot||s.val)).join('; ')+'.';
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block" role="img" aria-label="${resumen.replace(/"/g,'')}">${defs}${bars}${vlabels}${labels}${legend}</svg>`;
 }
@@ -767,7 +789,7 @@ function openDepto(id){
         <button type="button" class="${flowSel==='dueno'?'on':''}" aria-pressed="${flowSel==='dueno'}" onclick="pickFlow('dueno')">Directo el dueño</button></div>
       <div class="sub">“Directo el dueño” = lo maneja el dueño; queda solo en tu radar para cuando se libere.</div></div>
     <div class="field" id="comWrap" style="display:${flowSel==='dueno'?'none':'block'}"><label for="f_com">Comisión (%)</label><input id="f_com" type="number" inputmode="decimal" placeholder="Ej: 8" value="${dep?dep.comisionPct||'':''}"></div>
-    <div class="field"><label>Ajuste por IPC</label>
+    <div class="field"><label>Ajuste por inflación (IPC)</label>
       <div class="seg" id="f_ipc" role="group" aria-label="¿Tiene ajuste por IPC?">
         <button type="button" class="${ipcSel==='si'?'on':''}" aria-pressed="${ipcSel==='si'}" onclick="pickIPC('si')">Sí</button>
         <button type="button" class="${ipcSel==='no'?'on':''}" aria-pressed="${ipcSel==='no'}" onclick="pickIPC('no')">No</button></div></div>
@@ -863,14 +885,14 @@ function saveDepto(id){
     const comPrev=comisionPrevia(target);target.comisionPrevia=comPrev;
     save();closeSheet();render();
     if(!id&&(rec.ajustes.length||comPrev)){toast('Reconstruido: '+money(target.alquilerInicial)+' → '+money(rec.cur));}
-    else{toast(id?'Depto actualizado':'Depto agregado');}
+    else{toast(id?'Propiedad actualizada':'Propiedad agregada');}
   }else{
     target.ajustes=[];target.comisionPrevia=0;
     save();closeSheet();render();
-    toast(id?'Depto actualizado':'Depto agregado (vacío)');
+    toast(id?'Propiedad actualizada':'Propiedad agregada (vacía)');
   }
 }
-function delDepto(id){if(!confirm('¿Borrar este departamento? Se pierden sus pagos registrados.'))return;state.deptos=state.deptos.filter(d=>d.id!==id);Object.values(state.pagos).forEach(m=>delete m[id]);save();render();toast('Depto borrado');}
+function delDepto(id){if(!confirm('¿Borrar esta propiedad? Se pierden sus pagos registrados.'))return;state.deptos=state.deptos.filter(d=>d.id!==id);Object.values(state.pagos).forEach(m=>delete m[id]);save();render();toast('Propiedad borrada');}
 
 const IPC_SEED={'2023-01':6.0,'2023-02':6.6,'2023-03':7.7,'2023-04':8.4,'2023-05':7.8,'2023-06':6.0,'2023-07':6.3,'2023-08':12.4,'2023-09':12.7,'2023-10':8.3,'2023-11':12.8,'2023-12':25.5,'2024-01':20.6,'2024-02':13.2,'2024-03':11.0,'2024-04':8.8,'2024-05':4.2,'2024-06':4.6,'2024-07':4.0,'2024-08':4.2,'2024-09':3.5,'2024-10':2.7,'2024-11':2.4,'2024-12':2.7};
 let IPC_CACHE=null;
@@ -955,7 +977,7 @@ function cartelAjustes(list){
       <details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px;color:var(--green);font-weight:700">Ver cálculo (inflación mes a mes)</summary><div style="margin-top:8px">${filas}<div class="liq-line tot"><span>Suma (${a.n} meses)</span><span class="pos">${a.pct.toFixed(1)}%</span></div></div></details>
       ${wa}</div>`;
   }).join('');
-  openSheet(`<div style="text-align:center"><div style="font-size:40px">📈</div><h3 style="margin-top:6px">Aumento por IPC</h3><p class="hint">${list.length} ${list.length===1?'departamento con aumento':'departamentos con aumento'}. Avisale al inquilino.</p></div>${cards}<button class="btn btn-ghost" style="margin-top:10px" onclick="closeSheet()">Listo</button>`);
+  openSheet(`<div style="text-align:center"><div style="font-size:40px">📈</div><h3 style="margin-top:6px">Aumento por IPC</h3><p class="hint">${list.length} ${list.length===1?'propiedad con aumento':'propiedades con aumento'}. Avisale al inquilino.</p></div>${cards}<button class="btn btn-ghost" style="margin-top:10px" onclick="closeSheet()">Listo</button>`);
 }
 async function ensureIPC(){try{await fetchIPC();}catch(e){}autoAjustes();}
 /* Popup INFORMATIVO de un aumento ya aplicado */
@@ -994,10 +1016,10 @@ function openAlquiler(preId){const dp=preId?state.deptos.find(d=>d.id===preId):n
     <p class="hint">Registrá la operación y la comisión de garantía que cobrás por conseguir inquilino.</p>
     <div class="field"><label>Tipo de operación</label>
       <div class="seg" id="al_tipo">
-        <button type="button" class="${alqTipo==='nuevo'?'on':''}" onclick="pickTipo('nuevo')">Depto nuevo</button>
+        <button type="button" class="${alqTipo==='nuevo'?'on':''}" onclick="pickTipo('nuevo')">Propiedad nueva</button>
         <button type="button" class="${alqTipo==='renovacion'?'on':''}" onclick="pickTipo('renovacion')">Renovación</button></div>
-      <div class="sub">“Depto nuevo” = un dueño te dio un depto que no administrabas. “Renovación” = un depto que ya tenías cambió de inquilino.</div></div>
-    <div class="field"><label>Departamento</label><select id="al_depto">${opts||'<option>Primero cargá deptos</option>'}</select></div>
+      <div class="sub">“Propiedad nueva” = un dueño te dio una propiedad que no administrabas. “Renovación” = una propiedad que ya tenías cambió de inquilino.</div></div>
+    <div class="field"><label>Propiedad</label><select id="al_depto">${opts||'<option>Primero cargá propiedades</option>'}</select></div>
     <div class="field"><label>Inquilino nuevo</label><input id="al_inq" placeholder="Nombre"></div>
     <div class="row2">
       <div class="field"><label>Alquiler pactado</label><input id="al_alq" type="number" inputmode="numeric" placeholder="0"></div>
@@ -1005,13 +1027,13 @@ function openAlquiler(preId){const dp=preId?state.deptos.find(d=>d.id===preId):n
     <div class="row2">
       <div class="field"><label>Fecha de inicio</label><input id="al_fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
       <div class="field"><label>Fin de contrato</label><input id="al_fin" type="month"></div></div>
-    <div class="field"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600"><input type="checkbox" id="al_update" checked style="width:20px;height:20px"> Actualizar el depto (inquilino, alquiler, contrato)</label></div>
+    <div class="field"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600"><input type="checkbox" id="al_update" checked style="width:20px;height:20px"> Actualizar la propiedad (inquilino, alquiler, contrato)</label></div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveAlquiler()">Guardar</button></div>`);
 }
 let alqTipo='nuevo';function pickTipo(v){alqTipo=v;document.querySelectorAll('#al_tipo button').forEach((b,i)=>b.classList.toggle('on',(v==='nuevo')?i===0:i===1));}
-function saveAlquiler(){const deptoId=document.getElementById('al_depto').value;const dep=state.deptos.find(d=>d.id===deptoId);if(!dep){toast('Cargá un depto primero');return;}
+function saveAlquiler(){const deptoId=document.getElementById('al_depto').value;const dep=state.deptos.find(d=>d.id===deptoId);if(!dep){toast('Cargá una propiedad primero');return;}
   const num=v=>{const n=parseFloat(document.getElementById(v).value);return isNaN(n)?0:n;};
   const inq=document.getElementById('al_inq').value.trim();const alq=num('al_alq'),gar=num('al_gar'),fecha=document.getElementById('al_fecha').value,fin=document.getElementById('al_fin').value;
   state.alquileres.push({id:uid(),deptoId,deptoNombre:dep.nombre,inquilino:inq,alquiler:alq,garantia:gar,fecha,fin,tipo:alqTipo,cobrada:false});
@@ -1022,13 +1044,14 @@ function delAlquiler(id){if(!confirm('¿Borrar este registro?'))return;state.alq
 
 function openSettings(){
   const cfg=state.config||{};const org=cfg.organizador||{};const cob=cfg.cobranza||{diasRecordar:5,diasReclamar:10};
-  const ownersHtml=state.duenos.length?state.duenos.map(o=>{const n=state.deptos.filter(d=>d.duenoId===o.id).length;return `<div class="owner-row"><div><div class="nm">${esc(ownerName(o.id))}</div><div class="sm">${n} ${n===1?'depto':'deptos'}${o.telefono?' · 📱 '+esc(o.telefono):''}</div></div><div class="acts"><button class="btn-ghost" onclick="editOwner('${o.id}')">Editar</button>${n===0?`<button class="btn-danger" onclick="delOwner('${o.id}')">Borrar</button>`:''}</div></div>`;}).join(''):'<div class="sm" style="color:var(--muted);font-size:13px">Todavía no hay dueños.</div>';
+  const ownersHtml=state.duenos.length?state.duenos.map(o=>{const n=state.deptos.filter(d=>d.duenoId===o.id).length;return `<div class="owner-row"><div><div class="nm">${esc(ownerName(o.id))}</div><div class="sm">${n} ${n===1?'propiedad':'propiedades'}${o.telefono?' · 📱 '+esc(o.telefono):''}</div></div><div class="acts"><button class="btn-ghost" onclick="editOwner('${o.id}')">Editar</button>${n===0?`<button class="btn-danger" onclick="delOwner('${o.id}')">Borrar</button>`:''}</div></div>`;}).join(''):'<div class="sm" style="color:var(--muted);font-size:13px">Todavía no hay dueños.</div>';
   openSheet(`
     <h3>Ajustes</h3>
     <p class="hint">Los datos viven en este dispositivo. Guardá una copia cada tanto.</p>
     <div class="settings-item"><div><div class="t">Tu perfil</div><div class="d">${org.nombre?esc(org.nombre):'Sin nombre'}${org.tel?' · '+esc(org.tel):''}</div></div><button class="btn btn-ghost btn-sm" onclick="editOrganizador()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Cambiar contraseña</div><div class="d">Actualizá tu clave de acceso</div></div><button class="btn btn-ghost btn-sm" onclick="editPassword()">Cambiar</button></div>
     <div class="settings-item"><div><div class="t">Ver tutorial</div><div class="d">Repasá cómo funciona el panel</div></div><button class="btn btn-ghost btn-sm" onclick="startTour()">Ver</button></div>
+    <div class="settings-item"><div><div class="t">Letra más grande</div><div class="d">Agranda los textos de toda la app</div></div><button class="btn ${cfg.textoGrande?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleTextoGrande()">${cfg.textoGrande?'Activada ✓':'Activar'}</button></div>
     <div class="settings-item"><div><div class="t">Vencimiento por defecto</div><div class="d">El pago vence el día ${cob.diaVencimiento||10} · después se avisa a la garantía</div></div><button class="btn btn-ghost btn-sm" onclick="editCobranza()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Mensajes</div><div class="d">Personalizá los textos automáticos</div></div><button class="btn btn-ghost btn-sm" onclick="editMensajes()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Descargar copia</div><div class="d">Archivo con todos tus datos</div></div><button class="btn btn-ghost btn-sm" onclick="exportData()">Descargar</button></div>
@@ -1038,7 +1061,7 @@ function openSettings(){
     <div class="card" style="box-shadow:none;border:1px solid var(--line)">${ownersHtml}</div>
     <div class="settings-item" style="margin-top:14px"><div><div class="t">Cerrar sesión</div><div class="d">Salís de la cuenta en este dispositivo</div></div><button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button></div>
     <div class="settings-item" style="margin-top:14px"><div><div class="t" style="color:var(--red)">Borrar todo</div><div class="d">Empezar de cero</div></div><button class="btn btn-danger btn-sm" onclick="wipe()">Borrar</button></div>
-    <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:16px">${state.deptos.length} deptos · ${state.duenos.length} dueños · ${state.alquileres.length} alquileres</div>`);
+    <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:16px">${state.deptos.length} propiedades · ${state.duenos.length} dueños · ${state.alquileres.length} alquileres</div>`);
 }
 function editOwner(id){const o=owner(id);
   openSheet(`
@@ -1116,7 +1139,7 @@ function saveOrganizador(){const cfg=state.config;cfg.organizador={nombre:docume
 function editCobranza(){const c=(state.config&&state.config.cobranza)||{};
   openSheet(`
     <h3>Vencimiento por defecto</h3>
-    <p class="hint">Día corrido del mes en que vence el pago. Ej: 10 → el día 11 ya está vencido. Desde la mitad del plazo aparece el botón para recordarle al inquilino; una vez vencido, el aviso pasa a la garantía. Cada depto puede tener su propio día.</p>
+    <p class="hint">Día corrido del mes en que vence el pago. Ej: 10 → el día 11 ya está vencido. Desde la mitad del plazo aparece el botón para recordarle al inquilino; una vez vencido, el aviso pasa a la garantía. Cada propiedad puede tener su propio día.</p>
     <div class="field"><label>Día de vencimiento (corrido)</label><input id="cb_venc" type="number" inputmode="numeric" min="1" max="31" value="${c.diaVencimiento||10}"></div>
     <div class="sheet-actions"><button class="btn btn-ghost" onclick="openSettings()">Volver</button><button class="btn btn-primary" onclick="saveCobranza()">Guardar</button></div>`);
 }
@@ -1144,10 +1167,10 @@ const TPL_META={
   aumento:{titulo:'Aviso de aumento por IPC',ph:['inquilino','depto','periodo','ipc','nuevo','anterior','desde','meses','firma']},
   garantia:{titulo:'Aviso a la garantía',ph:['garantia','depto','inquilino','mes','items','firma']}
 };
-const PH_DESC={inquilino:'nombre del inquilino',depto:'dirección del depto',mes:'mes',items:'lo que adeuda',alquiler:'alquiler actual',firma:'tu firma',periodo:'trimestral/…',ipc:'% de aumento',nuevo:'alquiler nuevo',anterior:'alquiler anterior',desde:'mes en que rige',meses:'meses de IPC usados',garantia:'empresa de garantía'};
+const PH_DESC={inquilino:'nombre del inquilino',depto:'dirección de la propiedad',mes:'mes',items:'lo que adeuda',alquiler:'alquiler actual',firma:'tu firma',periodo:'trimestral/…',ipc:'% de aumento',nuevo:'alquiler nuevo',anterior:'alquiler anterior',desde:'mes en que rige',meses:'meses de IPC usados',garantia:'empresa de garantía'};
 function editMensajes(){
   const items=Object.keys(TPL_META).map(k=>`<div class="settings-item"><div><div class="t">${TPL_META[k].titulo}</div><div class="d">${(state.config&&state.config.plantillas&&state.config.plantillas[k])?'Personalizado':'Por defecto'}</div></div><button class="btn btn-ghost btn-sm" onclick="editPlantilla('${k}')">Editar</button></div>`).join('');
-  openSheet(`<h3>Mensajes automáticos</h3><p class="hint">Editá el texto genérico. Lo que va entre { } se completa solo con los datos de cada depto.</p>${items}<button class="btn btn-ghost" style="margin-top:8px" onclick="openSettings()">Volver</button>`);
+  openSheet(`<h3>Mensajes automáticos</h3><p class="hint">Editá el texto genérico. Lo que va entre { } se completa solo con los datos de cada propiedad.</p>${items}<button class="btn btn-ghost" style="margin-top:8px" onclick="openSettings()">Volver</button>`);
 }
 function editPlantilla(key){
   const meta=TPL_META[key];const val=tpl(key);
@@ -1208,10 +1231,12 @@ function renderOnboarding(){
 function captureOb(){const n=document.getElementById('ob_nombre');if(n)state.config.organizador.nombre=n.value.trim();const t=document.getElementById('ob_tel');if(t)state.config.organizador.tel=t.value.trim();}
 function obBack(){captureOb();if(obStep>0){obStep--;renderOnboarding();}}
 function obNext(){captureOb();const total=obSteps().length;if(obStep<total-1){obStep++;renderOnboarding();}else{finishOnboarding();}}
-function finishOnboarding(){state.config.onboarded=true;save();hideGate();if(!obTourOnly){go('deptos');setTimeout(()=>toast('¡Listo! Empezá cargando tu primer depto'),300);}else{toast('Tutorial terminado');}}
+function finishOnboarding(){state.config.onboarded=true;save();hideGate();if(!obTourOnly){go('deptos');setTimeout(()=>toast('¡Listo! Empezá cargando tu primera propiedad'),300);}else{toast('Tutorial terminado');}}
 function startTour(){closeSheet();openOnboarding(true);}
 
-function boot(){render();if(!state.config.onboarded){openOnboarding(false);}ensureIPC();}
+function boot(){applyTextoGrande();render();if(!state.config.onboarded){openOnboarding(false);}ensureIPC();}
+function applyTextoGrande(){document.body.classList.toggle('big-text',!!(state.config&&state.config.textoGrande));}
+function toggleTextoGrande(){if(!state.config)state.config={};state.config.textoGrande=!state.config.textoGrande;applyTextoGrande();save();openSettings();}
 
 /* ============ Login + sincronización con Supabase ============ */
 async function authBoot(){
@@ -1228,7 +1253,7 @@ async function afterLogin(){
     const {data,error}=await sb.from('panel_data').select('data').eq('user_id',sbUser.id).maybeSingle();
     if(error)throw error;
     if(data&&data.data&&data.data.duenos){state=data.data;if(!state.config)state.config={onboarded:true,organizador:{nombre:'',tel:''},pin:'',cobranza:{diasRecordar:5,diasReclamar:10}};localStorage.setItem(KEY,JSON.stringify(state));}
-  }catch(e){toast('No se pudo leer la nube, uso datos locales');}
+  }catch(e){toast('Sin conexión — trabajando con los datos de este equipo');}
   remoteReady=true;
   boot();
   pushRemote();
@@ -1273,8 +1298,20 @@ async function doAuth(isSignup){
     if(res.error)throw res.error;
     if(!res.data.session){err.textContent='Cuenta creada. Ahora tocá “Ya tengo cuenta, ingresar”.';return;}
     sbUser=res.data.session.user;await afterLogin();
-  }catch(e){err.textContent=(e&&e.message)?e.message:'No se pudo, revisá los datos';}
+  }catch(e){err.textContent=authErrMsg(e);}
+}
+function authErrMsg(e){
+  const m=((e&&e.message)||'').toLowerCase();
+  if(m.includes('invalid login')||m.includes('invalid credentials'))return 'Email o contraseña incorrectos.';
+  if(m.includes('email not confirmed'))return 'Todavía no confirmaste tu email. Revisá tu casilla (y el correo no deseado).';
+  if(m.includes('already registered')||m.includes('already exists'))return 'Ese email ya tiene una cuenta. Tocá “Ya tengo cuenta, ingresar”.';
+  if(m.includes('at least 6')||m.includes('password should'))return 'La contraseña tiene que tener al menos 6 caracteres.';
+  if(m.includes('rate limit')||m.includes('too many'))return 'Muchos intentos seguidos. Esperá un momento y probá de nuevo.';
+  if(m.includes('network')||m.includes('fetch')||!navigator.onLine)return 'Sin conexión. Fijate que tengas internet y probá de nuevo.';
+  return 'No pudimos entrar. Revisá el email y la contraseña.';
 }
 async function logout(){await sb.auth.signOut();}
 
+window.addEventListener('online',()=>{setSaveStatus('saving');pushRemote();});
+window.addEventListener('offline',()=>setSaveStatus('offline'));
 authBoot();
