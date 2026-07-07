@@ -80,6 +80,7 @@ function openServicios(depId){const dep=state.deptos.find(d=>d.id===depId);if(!d
 }
 function refreshServSheet(depId){const dep=state.deptos.find(d=>d.id===depId);const cell=(state.pagos[ym]||{})[depId]||{};const lista=serviciosDe(dep);const cont=document.getElementById('serv_rows');if(!cont)return;cont.innerHTML=lista.map(k=>{const on=cell.serv?cell.serv[k]:(cell.ser===true);return `<button class="serv-row ${on?'on':''}" onclick="setServ('${depId}','${k}');refreshServSheet('${depId}')">${servLabel(k)}<span>${on?'✓ Pagó':'Pendiente'}</span></button>`;}).join('');}
 function setFechaPago(deptoId,fecha){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};state.pagos[ym][deptoId].fecha=fecha;state.pagos[ym][deptoId].alq=true;save();render();}
+function marcarRecordado(deptoId){if(!state.pagos[ym])state.pagos[ym]={};if(!state.pagos[ym][deptoId])state.pagos[ym][deptoId]={alq:false,exp:false,ser:false};state.pagos[ym][deptoId].recordado=new Date().toISOString().slice(0,10);save();setTimeout(renderMes,60);}
 /* Días hábiles (lu-vi) desde el 1º hasta una fecha YYYY-MM-DD dada */
 function habilesHasta(fecha){if(!fecha)return null;const[y,m,d]=fecha.split('-').map(Number);let c=0;for(let dd=1;dd<=d;dd++){const wd=new Date(y,m-1,dd).getDay();if(wd!==0&&wd!==6)c++;}return c;}
 function openFechaPago(depId){const c=(state.pagos[ym]||{})[depId]||{};const f=c.fecha||(ym+'-01');
@@ -216,7 +217,8 @@ function renderMes(){
     const p=pagos(dep.id);const cb=cobranza(dep);const[ptxt,pcls]=PILL[cb.nivel]||PILL.pendiente;
     const vencido=cb.nivel==='critico';
     const puedeRecordar=(cb.nivel==='recordar'||cb.nivel==='pendiente')&&dep.telInquilino;
-    const wa=puedeRecordar?`<a class="contact contact-amber" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,'recordar'))}" target="_blank" rel="noopener">${WA_SVG} Recordar pago al inquilino</a>`:'';
+    const rec=p.recordado;const recF=rec?rec.split('-').reverse().slice(0,2).join('/'):'';
+    const wa=puedeRecordar?`<a class="contact ${rec?'contact-recordado':'contact-amber'}" href="https://wa.me/${digits(dep.telInquilino)}?text=${encodeURIComponent(reminderText(dep,'recordar'))}" target="_blank" rel="noopener" onclick="marcarRecordado('${dep.id}')">${WA_SVG} ${rec?`Ya le recordaste el ${recF} · recordar de nuevo`:'Recordar pago al inquilino'}</a>`:'';
     const mailGar=(vencido&&dep.garantiaMail)?`<a class="contact contact-red" href="${mailtoGar(dep)}" target="_blank" rel="noopener">${GMAIL_SVG} Avisar a la garantía</a>`:'';
     const efAj=ajusteDelMes(dep,ym);
     const infoChip=efAj?`<span class="chip-info" aria-hidden="true">i</span>`:'';
@@ -514,7 +516,7 @@ function renderDeptos(){
   // === Vista: Propiedades ===
   const pipe=pipeline();
   if(pipe.length){html+=`<button class="alert" onclick="goVencimientos()"><span class="txt">⏳ ${pipe.length} ${pipe.length===1?'propiedad necesita':'propiedades necesitan'} atención — vencimientos / disponibles</span><span class="go">›</span></button>`;}
-  html+=`<div class="add-fab"><button class="btn btn-primary" onclick="openDepto()">+ Agregar propiedad</button></div>`;
+  html+=`<div class="add-fab"><button class="btn btn-primary" onclick="openAgregar()">+ Agregar propiedad</button></div>`;
   if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus propiedades.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
   const grupos={};state.deptos.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
   Object.keys(grupos).forEach(oid=>{
@@ -738,10 +740,10 @@ function initSheetSwipe(s){
 let flowSel='vos',estSel='alquilado',ipcSel='si',serviciosSel=[],monedaSel='ARS',depMonedaSel='ARS';
 const SERVICIOS=[{k:'agua',l:'Agua'},{k:'luz',l:'Luz'},{k:'gas',l:'Gas'},{k:'abl',l:'ABL'},{k:'internet',l:'Internet'}];
 function servLabel(k){const s=SERVICIOS.find(x=>x.k===k);return s?s.l:k;}
-function openDepto(id){
+function openDepto(id,initEstado){
   const dep=id?state.deptos.find(d=>d.id===id):null;
   flowSel=dep?(dep.modalidad==='dueno'?'dueno':'vos'):'vos';
-  estSel=dep?dep.estado||'alquilado':'alquilado';
+  estSel=dep?dep.estado||'alquilado':(initEstado||'alquilado');
   ipcSel=dep?((dep.ajusteMeses&&dep.ajusteMeses>0)?'si':'no'):'si';
   serviciosSel=dep&&Array.isArray(dep.serviciosList)?dep.serviciosList.slice():[];
   monedaSel=dep&&dep.moneda?dep.moneda:'ARS';
@@ -996,6 +998,144 @@ function marcarDepDevuelto(depId){
 function desmarcarDepDevuelto(depId){
   const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;
   dep.depositoDevuelto='';save();openDeposito(depId);
+}
+
+// ══════════ Alta de propiedad: 4 caminos ══════════
+function openAgregar(){
+  openSheet(`
+    <h3 id="sheet-title">Agregar propiedad</h3>
+    <p class="hint">Elegí cómo te queda más cómodo cargarla.</p>
+    <button type="button" class="choice-card" onclick="addFromContrato()">
+      <span class="ch-ico">🪄</span>
+      <span class="ch-body"><span class="ch-title">Subir el contrato <span class="ch-badge">Pronto</span></span><span class="ch-desc">La IA lee el contrato y completa sola todos los campos. Vos revisás y confirmás.</span></span>
+      <span class="ch-arrow">›</span></button>
+    <button type="button" class="choice-card" onclick="openDepto()">
+      <span class="ch-ico">✍️</span>
+      <span class="ch-body"><span class="ch-title">Cargar manual</span><span class="ch-desc">Completás vos los datos, paso a paso. Lo de siempre.</span></span>
+      <span class="ch-arrow">›</span></button>
+    <button type="button" class="choice-card" onclick="openImportExcel()">
+      <span class="ch-ico">📄</span>
+      <span class="ch-body"><span class="ch-title">Cargar desde Excel</span><span class="ch-desc">Descargás la plantilla, la llenás como en tu Excel de siempre y la subís. Se cargan todas juntas.</span></span>
+      <span class="ch-arrow">›</span></button>
+    <button type="button" class="choice-card" onclick="openDepto('','vacio')">
+      <span class="ch-ico">🏚️</span>
+      <span class="ch-body"><span class="ch-title">Propiedad vacía</span><span class="ch-desc">Solo datos de la propiedad y el dueño. Sin inquilino ni contrato todavía.</span></span>
+      <span class="ch-arrow">›</span></button>`);
+}
+function addFromContrato(){
+  openSheet(`
+    <h3 id="sheet-title">Subir el contrato</h3>
+    <div class="empty" style="padding:14px 0"><div class="em">🪄</div>
+    <p><strong>Muy pronto.</strong><br>Vas a poder subir el contrato (PDF o foto) y la IA completa sola todos los campos que encuentre. Los que falten, los terminás vos, revisás y confirmás.</p></div>
+    <div class="sheet-actions" style="flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="openAgregar()">‹ Volver</button>
+      <button class="btn btn-primary btn-sm" onclick="openDepto()">Cargar manual mientras tanto</button></div>`);
+}
+
+// ══════════ Importar desde Excel ══════════
+const PLANTILLA_COLS=['Calle','Número','Piso','Depto','Estado (alquilado/vacío)','Dueño apellido','Dueño nombre','Dueño DNI','Dueño teléfono','Inquilino apellido','Inquilino nombre','Inquilino DNI','Inquilino teléfono','Empresa de garantía','Mail de garantía','Moneda (ARS/USD)','Alquiler pactado','Administración (vos/dueño)','Comisión %','Ajuste IPC (sí/no)','Frecuencia IPC (meses)','Día de vencimiento','Contrato inicio (AAAA-MM-DD)','Contrato fin (AAAA-MM-DD)','Servicios (luz;gas;agua;abl;internet)','Depósito monto','Depósito moneda (ARS/USD)','Depósito nota','Notas'];
+const PLANTILLA_EJEMPLO=['Av. Corrientes','1234','4','B','alquilado','Pérez','Juan','20111222','11 5555 5555','Gómez','María','27333444','11 4444 3333','Finaer','siniestros@finaer.com','ARS','500000','vos','8','sí','3','10','2024-07-01','2027-06-30','luz;gas;agua','500000','ARS','Equivale a 1 mes','Cochera incluida'];
+function openImportExcel(){
+  openSheet(`
+    <h3 id="sheet-title">Cargar desde Excel</h3>
+    <ol class="steps-list">
+      <li><b>Descargá la plantilla</b> y abrila en Excel o Google Sheets.</li>
+      <li><b>Completá una fila por propiedad.</b> Solo Calle, Número y el dueño son obligatorios; el resto, lo que tengas.</li>
+      <li><b>Subí el archivo.</b> Se cargan todas juntas y completamos cada campo detectado.</li>
+    </ol>
+    <div class="sheet-actions" style="flex-wrap:wrap;gap:10px">
+      <button class="btn btn-ghost btn-sm" onclick="descargarPlantilla()">⬇ Descargar plantilla</button>
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('xlsxFile').click()">⬆ Subir archivo lleno</button>
+      <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv" onchange="procesarExcel(this)" style="display:none">
+    </div>
+    <div class="sub" style="margin-top:10px">¿Preferís cargar de a una? <button type="button" class="edit-link" style="background:none;border:none;padding:0;cursor:pointer" onclick="openDepto()">Carga manual</button></div>`);
+}
+function descargarPlantilla(){
+  if(typeof XLSX==='undefined'){toast('Se está cargando el generador… probá de nuevo en unos segundos');return;}
+  const ws=XLSX.utils.aoa_to_sheet([PLANTILLA_COLS,PLANTILLA_EJEMPLO]);
+  ws['!cols']=PLANTILLA_COLS.map(()=>({wch:18}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Propiedades');
+  XLSX.writeFile(wb,'plantilla-administria.xlsx');
+  toast('Plantilla descargada — llenala y subila');
+}
+function procesarExcel(input){
+  const file=input.files&&input.files[0];if(!file)return;
+  if(typeof XLSX==='undefined'){toast('No pudimos leer el archivo. Recargá la página y probá de nuevo.');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
+      importarFilas(rows);
+    }catch(err){console.warn(err);toast('No pudimos leer el Excel. Fijate de usar la plantilla.');}
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+function _normH(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[()]/g,'').replace(/\s+/g,' ').trim();}
+const _COLMAP={'calle':'calle','numero':'numero','piso':'piso','depto':'depto','estado alquilado/vacio':'estado','estado':'estado',
+  'dueno apellido':'oap','dueno nombre':'onom','dueno dni':'odni','dueno telefono':'otel',
+  'inquilino apellido':'iap','inquilino nombre':'inom','inquilino dni':'idni','inquilino telefono':'itel',
+  'empresa de garantia':'garemp','mail de garantia':'garmail','moneda ars/usd':'moneda','moneda':'moneda',
+  'alquiler pactado':'alq','administracion vos/dueno':'admin','administracion':'admin','comision %':'com','comision':'com',
+  'ajuste ipc si/no':'ipc','ajuste ipc':'ipc','frecuencia ipc meses':'ipcFreq','frecuencia ipc':'ipcFreq',
+  'dia de vencimiento':'diaVenc','contrato inicio aaaa-mm-dd':'cini','contrato inicio':'cini',
+  'contrato fin aaaa-mm-dd':'cfin','contrato fin':'cfin','servicios luz;gas;agua;abl;internet':'servicios','servicios':'servicios',
+  'deposito monto':'depMonto','deposito moneda ars/usd':'depMoneda','deposito moneda':'depMoneda','deposito nota':'depNota','notas':'notas'};
+function _fecha(v){
+  if(!v)return '';
+  if(v instanceof Date&&!isNaN(v))return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  return '';
+}
+function importarFilas(rows){
+  if(!rows||!rows.length){toast('El archivo no tiene filas cargadas');return;}
+  let ok=0,err=0;
+  rows.forEach(raw=>{
+    const r={};Object.keys(raw).forEach(k=>{const f=_COLMAP[_normH(k)];if(f!=null)r[f]=raw[k];});
+    const calle=String(r.calle||'').trim(),numero=String(r.numero||'').trim();
+    const oap=capName(String(r.oap||'').trim()),onom=capName(String(r.onom||'').trim());
+    if(!calle||!numero||!oap){err++;return;}
+    // dueño: reusar si ya existe (apellido+nombre), si no crear
+    let duenoId;const key=(oap+'|'+onom).toLowerCase();
+    const ex=state.duenos.find(d=>((d.apellido||'')+'|'+(d.nombre||'')).toLowerCase()===key);
+    const oData={apellido:oap,nombre:onom,dni:String(r.odni||'').trim(),telefono:String(r.otel||'').trim()};
+    if(ex){duenoId=ex.id;Object.assign(ex,oData);}else{duenoId=uid();state.duenos.push({id:duenoId,...oData});}
+    const piso=String(r.piso||'').trim(),depto=String(r.depto||'').trim();
+    const nombre=calle+' '+numero+(piso?', Piso '+piso:'')+(depto?' Depto '+depto:'');
+    const esVacio=_normH(r.estado).startsWith('vac');
+    const notas=String(r.notas||'').trim();
+    let data;
+    if(esVacio){
+      data={nombre,calle,numero,piso,depto,duenoId,estado:'vacio',inqApellido:'',inqNombre:'',inqDni:'',telInquilino:'',inquilino:'',garantiaEmpresa:'',garantiaMail:'',notas,
+        alquilerInicial:0,alquiler:0,moneda:'ARS',modalidad:'vos',comisionPct:0,contratoInicio:'',contratoFin:'',diaVencimiento:10,
+        expensas:true,servicios:false,serviciosList:[],ajusteIPC:false,ajusteMeses:0,publicando:false};
+    }else{
+      const moneda=_normH(r.moneda)==='usd'?'USD':'ARS';
+      const modalidad=_normH(r.admin).includes('dueno')?'dueno':'vos';
+      const ipcOn=['si','x','true','1'].includes(_normH(r.ipc));
+      const ajusteMeses=ipcOn?(parseInt(r.ipcFreq)||3):0;
+      const servList=String(r.servicios||'').split(/[;,\/]/).map(x=>_normH(x)).map(x=>{const s=SERVICIOS.find(sv=>sv.k===x||_normH(sv.l)===x);return s?s.k:null;}).filter(Boolean);
+      const dep={monto:parseFloat(r.depMonto)||0,moneda:_normH(r.depMoneda)==='usd'?'USD':'ARS',nota:String(r.depNota||'').trim()};
+      data={nombre,calle,numero,piso,depto,duenoId,estado:'alquilado',
+        inqApellido:capName(String(r.iap||'').trim()),inqNombre:capName(String(r.inom||'').trim()),inqDni:String(r.idni||'').trim(),telInquilino:String(r.itel||'').trim(),
+        inquilino:(capName(String(r.iap||'').trim())+', '+capName(String(r.inom||'').trim())).replace(/^, |, $/,''),
+        garantiaEmpresa:String(r.garemp||'').trim(),garantiaMail:String(r.garmail||'').trim(),notas,
+        alquilerInicial:parseFloat(r.alq)||0,alquiler:parseFloat(r.alq)||0,moneda,modalidad,comisionPct:modalidad==='dueno'?0:(parseFloat(r.com)||0),
+        contratoInicio:_fecha(r.cini),contratoFin:_fecha(r.cfin),diaVencimiento:Math.min(31,Math.max(1,parseInt(r.diaVenc)||10)),
+        expensas:true,servicios:servList.length>0,serviciosList:servList,
+        deposito:dep,depositoArreglos:[],depositoDevuelto:'',
+        ajusteIPC:ipcOn,ajusteMeses};
+    }
+    const target={id:uid(),ajustes:[],...data};
+    if(!esVacio){const rec=reconstruir(target,ipcMap());target.alquiler=rec.cur;target.ajustes=rec.ajustes;marcarPrevios(target);target.comisionPrevia=comisionPrevia(target);}
+    state.deptos.push(target);ok++;
+  });
+  save();closeSheet();render();
+  toast(ok?`✓ Se cargaron ${ok} ${ok===1?'propiedad':'propiedades'}${err?` · ${err} sin cargar (faltaba calle, número o dueño)`:''}`:'No se cargó ninguna: revisá que estén calle, número y dueño.');
 }
 
 const IPC_SEED={'2023-01':6.0,'2023-02':6.6,'2023-03':7.7,'2023-04':8.4,'2023-05':7.8,'2023-06':6.0,'2023-07':6.3,'2023-08':12.4,'2023-09':12.7,'2023-10':8.3,'2023-11':12.8,'2023-12':25.5,'2024-01':20.6,'2024-02':13.2,'2024-03':11.0,'2024-04':8.8,'2024-05':4.2,'2024-06':4.6,'2024-07':4.0,'2024-08':4.2,'2024-09':3.5,'2024-10':2.7,'2024-11':2.4,'2024-12':2.7};

@@ -692,3 +692,30 @@
 /* Filas del dashboard: que nombres largos no se pisen con el valor */
 .dash-row-top{align-items:baseline}
 .dash-row-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Selector "Agregar propiedad": tarjetas de opción grandes y claras ── */
+.choice-card{display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  border:1.5px solid var(--line);border-radius:14px;background:var(--surface);
+  padding:15px 16px;margin-bottom:11px;cursor:pointer;transition:border-color .12s,background .12s}
+.choice-card:hover{border-color:var(--green);background:var(--green-soft)}
+.choice-card .ch-ico{font-size:26px;line-height:1;flex-shrink:0}
+.choice-card .ch-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.choice-card .ch-title{font-size:15.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
+.choice-card .ch-desc{font-size:12.5px;color:var(--muted);font-weight:500;line-height:1.35}
+.choice-card .ch-badge{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--green);background:var(--green-soft);border:1px solid #cfe8dc;padding:1px 7px;border-radius:999px}
+.choice-card .ch-arrow{font-size:22px;color:var(--muted);flex-shrink:0}
+.steps-list{margin:4px 0 16px;padding-left:20px;font-size:13.5px;color:var(--ink);line-height:1.5}
+.steps-list li{margin-bottom:7px}
+
+/* ── Seguimiento: cards centradas y con ancho que mantiene título+info en 2 filas ── */
+@media (min-width:640px) and (max-width:1023px){
+  #view-mes .cards{grid-template-columns:1fr;max-width:560px;margin-left:auto;margin-right:auto}
+}
+@media (min-width:1024px){
+  #view-mes .cards{max-width:920px;margin-left:auto;margin-right:auto}
+  #view-mes .controls,#view-mes .progress,#view-mes .alert,#view-mes .owner-filter-btn{max-width:920px;margin-left:auto;margin-right:auto}
+  #view-mes .summary{margin-left:auto;margin-right:auto}
+}
+
+/* Botón de recordatorio ya enviado este mes: se ve "hecho" pero sigue clickeable */
+.contact-recordado{color:var(--muted);background:#eef2f6}
