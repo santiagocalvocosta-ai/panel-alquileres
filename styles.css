@@ -524,26 +524,26 @@
     }
     #view-alquileres .card .sheet-actions .btn-sm{padding:6px 11px;font-size:11.5px;min-height:34px}
 
-    /* ── GARANTES: una empresa por fila, layout horizontal que llena el ancho ── */
+    /* ── GARANTES: una empresa por fila; columna de nombre fija para que las stats queden alineadas entre filas y ocupen el ancho ── */
     #view-garantes .cards{
       display:flex;flex-direction:column;gap:14px;
       background:transparent;box-shadow:none;overflow:visible;margin-bottom:22px;
     }
     #view-garantes .card{
       display:grid;
-      grid-template-columns:minmax(230px,1.5fr) 3fr auto;
-      grid-template-areas:"head stats mail" "insight insight insight" "details details details";
+      grid-template-columns:300px minmax(0,1fr);
+      grid-template-areas:"head stats" "insight insight" "details details" "mail mail";
       align-items:center;column-gap:28px;row-gap:10px;
       padding:16px 22px;background:#fff;border-radius:14px;
       box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 12px rgba(0,0,0,.04);border-bottom:none;
     }
     #view-garantes .card:hover{background:#fff}
-    #view-garantes .card .card-top{grid-area:head;margin:0;align-items:center;gap:12px}
-    #view-garantes .gar-stats{grid-area:stats;grid-template-columns:repeat(4,1fr);margin:0;gap:10px}
+    #view-garantes .card .card-top{grid-area:head;margin:0;align-items:center;gap:12px;justify-content:space-between;min-width:0}
+    #view-garantes .gar-stats{grid-area:stats;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;gap:10px;width:100%}
     #view-garantes .gar-stat{background:#f8fafc}
     #view-garantes .gar-insight{grid-area:insight;margin:0}
     #view-garantes .gar-details{grid-area:details;margin:0;border-top:1px solid #f1f5f9;padding-top:4px}
-    #view-garantes .card>.contact{grid-area:mail;justify-self:end;margin:0;white-space:nowrap}
+    #view-garantes .card>.contact{grid-area:mail;justify-self:start;margin:0;white-space:nowrap}
 
     /* ── DUEÑOS: tarjetas separadas, detalle full-width legible ──── */
     #view-duenos .cards{
@@ -654,3 +654,23 @@
   body.big-text #view-duenos .liq-summary .liq-line span:last-child{font-size:18px}
   body.big-text #view-duenos .card .liq-hero-v{font-size:22px}
   body.big-text #view-garantes .card .card-name{font-size:17px}
+
+/* ── Tarjeta clickeable "Sin cobrar" en el resumen de Seguimiento ── */
+.stat-btn{appearance:none;border:0;font:inherit;text-align:left;cursor:pointer;color:inherit}
+.stat-btn .stat-link{font-size:11px;font-weight:700;color:var(--green);margin-top:5px}
+.stat-btn.on{outline:2px solid var(--green);outline-offset:-2px}
+.summary.has4{grid-template-columns:repeat(2,1fr)}
+
+/* ── Dueños: nombre + propiedades + estado de liquidación en UNA sola fila ── */
+.owner-top{flex-wrap:wrap;align-items:center}
+.owner-top .liq-hero{flex:1 1 100%;margin-top:10px}
+
+@media (min-width:1024px){
+  .summary.has4{grid-template-columns:repeat(4,1fr);max-width:760px}
+  #view-duenos .owner-top{flex-wrap:nowrap;gap:16px}
+  #view-duenos .owner-top>div:first-child{flex:0 1 auto;min-width:0}
+  #view-duenos .owner-top .liq-hero{flex:0 1 auto;margin:0 0 0 auto;text-align:right;padding:8px 16px;min-width:260px}
+  #view-duenos .owner-top .liq-hero-v{font-size:19px}
+  #view-duenos .owner-top .liq-hero-k{font-size:11px}
+  #view-duenos .owner-top .liq-hero-sub{font-size:11.5px}
+}

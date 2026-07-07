@@ -28,10 +28,13 @@ function save(){
   setSaveStatus(navigator.onLine?'saving':'offline');
   pushRemote();
 }
+let saveStatusT;
 function setSaveStatus(st){
   const el=document.getElementById('saveStatus');if(!el)return;
+  clearTimeout(saveStatusT);
   el.className='save-status '+st;
   el.textContent = st==='saving' ? 'Guardando…' : st==='offline' ? '⚠️ Sin conexión' : '✓ Guardado';
+  if(st==='saved')saveStatusT=setTimeout(()=>{el.className='save-status';},2500);
 }
 let pushT;
 function pushRemote(){
@@ -184,17 +187,15 @@ function renderMes(){
   const alqSinCobrar=activos.filter(d=>!pagos(d.id).alq&&activoEnMes(d)).length;
   const alqTotal=activos.filter(d=>activoEnMes(d)&&(d.estado||'alquilado')==='alquilado').length;
   const todoCobrado=alqSinCobrar===0&&alqTotal>0;
-  let html=`<div class="summary">
+  if(!alqSinCobrar&&mesSoloImpagos)mesSoloImpagos=false;
+  const sinCobrarStat=alqSinCobrar?`<button type="button" class="stat warn stat-btn${mesSoloImpagos?' on':''}" onclick="toggleImpagos()" aria-pressed="${mesSoloImpagos}"><div class="k">${mesSoloImpagos?'Mostrando solo sin cobrar':'Sin cobrar este mes'}</div><div class="v" style="font-size:15px">${alqSinCobrar} ${alqSinCobrar===1?'propiedad':'propiedades'}</div><div class="stat-link">${mesSoloImpagos?'✓ ver todas':'ver cuáles ›'}</div></button>`:'';
+  let html=`<div class="summary${alqSinCobrar?' has4':''}">
     <div class="stat pos"><div class="k">Cobrado</div><div class="v" style="font-size:15px">${dualStr(cobrado)}</div></div>
     <div class="stat ${alqSinCobrar?'warn':'pos'}"><div class="k">Pendiente de cobro ${alqSinCobrar}/${alqTotal}</div><div class="v" style="font-size:15px">${alqSinCobrar===0?'✓ Todo cobrado':dualStr(faltaCobrar)}</div></div>
     <div class="stat"><div class="k">Tu comisión</div><div class="v" style="font-size:15px">${dualStr(comTotal)}</div></div>
+    ${sinCobrarStat}
   </div>`;
 
-  // Seguimiento se enfoca en cobros: alerta sobre lo que falta cobrar (los vencimientos viven en Propiedades)
-  if(alqSinCobrar){
-    const activa=mesSoloImpagos;
-    html+=`<button class="alert${activa?' on':''}" onclick="toggleImpagos()" aria-pressed="${activa}"><span class="txt">${activa?'✓ Mostrando solo sin cobrar':'⚠️ '+alqSinCobrar+' '+(alqSinCobrar===1?'propiedad sin cobrar este mes':'propiedades sin cobrar este mes')}</span><span class="go">${activa?'ver todas':'›'}</span></button>`;
-  }
   let critCount=0;activos.forEach(d=>{if(cobranza(d).nivel==='critico')critCount++;});
   if(critCount){html+=`<div class="alert alert-red"><span class="txt">🔴 ${critCount} ${critCount===1?'pago crítico — corresponde reclamar a la garantía':'pagos críticos — corresponde reclamar a la garantía'}</span></div>`;}
 
@@ -310,7 +311,7 @@ function renderDuenos(){
   let html='<div class="cards">',any=false;
   state.duenos.forEach(d=>{
     const deps=state.deptos.filter(x=>x.duenoId===d.id&&activoEnMes(x));if(deps.length===0)return;any=true;
-    const cobrado={ARS:0,USD:0},com={ARS:0,USD:0},neto={ARS:0,USD:0},pendLiq={ARS:0,USD:0},masa={ARS:0,USD:0};const rows=[];let pendTransf=0,cobrados=0,gestionables=0;
+    const cobrado={ARS:0,USD:0},com={ARS:0,USD:0},neto={ARS:0,USD:0},pendLiq={ARS:0,USD:0},masa={ARS:0,USD:0};const rows=[],transferidos=[];let pendTransf=0,cobrados=0,gestionables=0;
     deps.forEach(dep=>{const p=pagos(dep.id);const rent=alquilerEnMes(dep);const cur=dep.moneda||'ARS';const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;
       if(dep.modalidad!=='dueno'){masa[cur]+=rent;gestionables++;}
       if(dep.modalidad==='dueno'){
@@ -318,7 +319,7 @@ function renderDuenos(){
       }else if(p.alq){
         com[cur]+=c;cobrado[cur]+=rent;neto[cur]+=rent-c;cobrados++;
         const cell=(state.pagos[ym]||{})[dep.id]||{};const tr=cell.transf;const monto=montoTransfer(dep);
-        if(!tr){pendTransf++;pendLiq[cur]+=monto;}
+        if(!tr){pendTransf++;pendLiq[cur]+=monto;}else{transferidos.push({dep,monto});}
         const ctrl=tr
           ? `<button class="transf-chip on" onclick="openTransferir('${dep.id}')" aria-label="Transferencia hecha a ${esc(ownerName(dep.duenoId))} por ${esc(dep.nombre)}. Tocá para ver o deshacer.">✓ Transferido</button>`
           : `<button class="transf-chip" onclick="openTransferir('${dep.id}')" aria-label="Marcar que le transferiste al dueño el alquiler de ${esc(dep.nombre)}">Marcar transferido</button>`;
@@ -327,7 +328,12 @@ function renderDuenos(){
         rows.push(`<div class="mini-row mini-row-transf"><div class="mr-info"><span class="mr-name">${esc(dep.nombre)}</span><span class="mr-amt" style="color:var(--muted)">sin cobrar todavía</span></div></div>`);
       }
     });
-    const wa=d.telefono?`<a class="contact" href="https://wa.me/${digits(d.telefono)}?text=${encodeURIComponent('Hola'+(d.nombre?' '+d.nombre:'')+'!')}" target="_blank" rel="noopener" aria-label="Abrir WhatsApp con ${esc(ownerName(d.id))}">${WA_SVG} WhatsApp</a>`:'';
+    let waMsg='Hola'+(d.nombre?' '+d.nombre:'')+'!';
+    if(transferidos.length){
+      const tot={ARS:0,USD:0};transferidos.forEach(t=>{tot[t.dep.moneda||'ARS']+=t.monto;});
+      waMsg+=' Te detallo lo que te transferí de '+ymLabel(ym)+':\n'+transferidos.map(t=>'• '+t.dep.nombre+': '+curMoney(t.dep,t.monto)).join('\n')+'\nTotal transferido: '+dualStr(tot)+'.\nCualquier cosa avisame. ¡Saludos!'+firmaOrg();
+    }else{waMsg+=' ¿Cómo estás?';}
+    const wa=d.telefono?`<a class="contact" href="https://wa.me/${digits(d.telefono)}?text=${encodeURIComponent(waMsg)}" target="_blank" rel="noopener" aria-label="Abrir WhatsApp con ${esc(ownerName(d.id))}">${WA_SVG} WhatsApp</a>`:'';
     const transfBadge=cobrados?`<span class="owner-tag ${pendTransf?'tag-warn':'tag-ok'}">${cobrados-pendTransf}/${cobrados} transferido${cobrados===1?'':'s'}</span>`:'';
     const hayPend=(pendLiq.ARS>0||pendLiq.USD>0);
     const heroCls=hayPend?'liq-hero pend':(cobrados?'liq-hero done':'liq-hero none');
@@ -335,8 +341,11 @@ function renderDuenos(){
     const heroSub=hayPend?`Le falta liquidar este mes${pendTransf?` · ${pendTransf} ${pendTransf===1?'propiedad':'propiedades'} pendiente${pendTransf===1?'':'s'}`:''}`:(cobrados?'Ya le transferiste todo lo cobrado ✓':'Cuando cobres, vas a ver acá cuánto liquidarle');
     const metaLine=`<div class="owner-meta">${dualStr(masa)} en alquileres · ${cobrados}/${gestionables} cobrado${gestionables===1?'':'s'}${(com.ARS||com.USD)?' · comisión '+dualStr(com):''}</div>`;
     html+=`<div class="card owner-card">
-      <div class="card-top"><div><div class="card-name">${esc(ownerName(d.id))}</div>${metaLine}</div><span class="owner-tag">${deps.length} ${deps.length===1?'propiedad':'propiedades'}</span></div>
-      <div class="${heroCls}"><div class="liq-hero-k">${hayPend?'💸 Falta liquidar':(cobrados?'✅ Al día':'—')}</div><div class="liq-hero-v">${heroTxt}</div><div class="liq-hero-sub">${heroSub}</div></div>
+      <div class="card-top owner-top">
+        <div><div class="card-name">${esc(ownerName(d.id))}</div>${metaLine}</div>
+        <span class="owner-tag">${deps.length} ${deps.length===1?'propiedad':'propiedades'}</span>
+        <div class="${heroCls}"><div class="liq-hero-k">${hayPend?'💸 Falta liquidar':(cobrados?'✅ Al día':'—')}</div><div class="liq-hero-v">${heroTxt}</div><div class="liq-hero-sub">${heroSub}</div></div>
+      </div>
       <details class="liq-details"><summary>Ver detalle del mes ${transfBadge}</summary>
         <div class="liq-summary">
           <div class="liq-line"><span>Alquileres cobrados (pasan por vos)</span><span>${dualStr(cobrado)}</span></div>
@@ -417,7 +426,15 @@ function renderGarantes(){
   Object.values(grupos).sort((a,b)=>b.deptos.length-a.deptos.length).forEach(g=>{
     const total=g.deptos.length;const masaStr=dualStr(g.alqTotal);
     const badge=g.reclamos?`<span class="gar-badge-red">${g.reclamos} en reclamo</span>`:`<span class="gar-badge-ok">${total} activo${total===1?'':'s'}</span>`;
-    const mailBtn=g.mail?`<a class="contact contact-red" href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(g.mail)}" target="_blank" rel="noopener" aria-label="Mail a ${esc(g.label)}">${GMAIL_SVG} ${esc(g.mail)}</a>`:'';
+    const enRec=g.deptos.filter(x=>x.enReclamo);
+    let mailBtn='';
+    if(g.mail&&enRec.length){
+      const subj='Reclamo de pago — '+(enRec.length===1?enRec[0].dep.nombre:enRec.length+' propiedades con atraso');
+      const body='Hola!\n\nLes escribo para informar '+(enRec.length===1?'un atraso de pago en una propiedad':'atrasos de pago en '+enRec.length+' propiedades')+' con garantía de caución de '+g.label+':\n\n'
+        +enRec.map(({dep})=>'• '+dep.nombre+'\n  Inquilino: '+(dep.inquilino||'—')+'\n  Adeuda: '+itemsAdeuda(dep)+' de '+ymLabel(ym)+'\n  Alquiler mensual: '+curMoney(dep,alquilerEnMes(dep))).join('\n\n')
+        +'\n\nPor favor avancen con el procedimiento correspondiente. Quedo a disposición por cualquier consulta.\n\nGracias.'+firmaOrg();
+      mailBtn=`<a class="contact contact-red" href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(g.mail)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}" target="_blank" rel="noopener" aria-label="Notificar reclamo a ${esc(g.label)}">${GMAIL_SVG} Notificar reclamo (${enRec.length})</a>`;
+    }
     const filas=g.deptos.map(({dep,enReclamo})=>{
       const pill=enReclamo?'pill-debt':'pill-ok';const pillTxt=enReclamo?'Atrasado':'Al día';
       const rent=alquilerEnMes(dep);const mailReclamo=enReclamo&&dep.garantiaMail?`<a class="gar-action-mail" href="${mailtoGar(dep)}" aria-label="Avisar reclamo por ${esc(dep.nombre)}">${GMAIL_SVG} Avisar</a>`:'';
@@ -688,7 +705,7 @@ function sparkline(serie,cur){
     // confirmado (cobrado) = de yConf a base, verde
     const confH=Math.max(1,base-yConf);
     bars+=`<rect x="${x(i).toFixed(1)}" y="${yConf.toFixed(1)}" width="${bw2.toFixed(1)}" height="${confH.toFixed(1)}" rx="2" fill="${last?'#0f6b4f':'#7fbfa4'}"><title>${ymLabel(s.ym)}: cobrado ${fmtMon(cur||'ARS',s.val)}</title></rect>`;
-    if(pot>0)vlabels+=`<text x="${cx.toFixed(1)}" y="${(y(pot)-4).toFixed(1)}" font-size="8.5" font-weight="700" fill="${projH>0.5?'#0b5540':'#0f6b4f'}" text-anchor="middle">${compactMoney(pot,cur)}</text>`;
+    if(pot>0&&((n-1-i)%2===0))vlabels+=`<text x="${cx.toFixed(1)}" y="${(y(pot)-4).toFixed(1)}" font-size="8.5" font-weight="700" fill="${projH>0.5?'#0b5540':'#0f6b4f'}" text-anchor="middle">${compactMoney(pot,cur)}</text>`;
   });
   const lab=i=>{const[y2,m2]=serie[i].ym.split('-');return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m2-1];};
   let labels='';serie.forEach((s,i)=>{labels+=`<text x="${(x(i)+bw2/2).toFixed(1)}" y="${H-16}" font-size="8" fill="#586860" text-anchor="middle">${lab(i)}</text>`;});
