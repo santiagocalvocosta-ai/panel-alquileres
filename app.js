@@ -531,10 +531,12 @@ function renderDeptos(){
         <div class="liq-line"><span>Contrato</span><span>${dep.contratoInicio||'—'} → ${dep.contratoFin||'—'}</span></div>
         <div class="liq-line"><span>Ajuste IPC</span><span>${(dep.ajusteMeses&&dep.ajusteMeses>0)?('cada '+dep.ajusteMeses+' meses'):'sin ajuste'}</span></div>
         <div class="liq-line"><span>Vence el día</span><span>${diaVenc(dep)} (corrido)</span></div>
-        <div class="liq-line"><span>Garantía</span><span>${dep.garantiaEmpresa?esc(dep.garantiaEmpresa):'—'}</span></div>
+        <div class="liq-line"><span>Garantía de caución</span><span>${dep.garantiaEmpresa?esc(dep.garantiaEmpresa):'—'}</span></div>
+        ${(dep.deposito&&dep.deposito.monto)?`<div class="liq-line"><span>Depósito de garantía</span><span>🔒 ${fmtMon(dep.deposito.moneda||'ARS',dep.deposito.monto)}${depStatusTag(dep)}</span></div>`:''}
         ${dep.notas?`<div class="depto-notas">📝 ${esc(dep.notas)}</div>`:''}
         <div class="sheet-actions" style="margin-top:12px">
           <button class="btn btn-ghost btn-sm" onclick="openDepto('${dep.id}')">Editar</button>
+          ${(dep.deposito&&dep.deposito.monto)||dep.depositoDevuelto?`<button class="btn btn-ghost btn-sm" onclick="openDeposito('${dep.id}')">Depósito</button>`:''}
           <button class="btn btn-danger btn-sm" onclick="delDepto('${dep.id}')">Borrar</button></div></div>`;});
     html+='</div>';
   });
@@ -733,7 +735,7 @@ function initSheetSwipe(s){
   grab.addEventListener('touchstart',start,{passive:true});grab.addEventListener('touchmove',move,{passive:true});grab.addEventListener('touchend',end);
 }
 
-let flowSel='vos',estSel='alquilado',ipcSel='si',serviciosSel=[],monedaSel='ARS';
+let flowSel='vos',estSel='alquilado',ipcSel='si',serviciosSel=[],monedaSel='ARS',depMonedaSel='ARS';
 const SERVICIOS=[{k:'agua',l:'Agua'},{k:'luz',l:'Luz'},{k:'gas',l:'Gas'},{k:'abl',l:'ABL'},{k:'internet',l:'Internet'}];
 function servLabel(k){const s=SERVICIOS.find(x=>x.k===k);return s?s.l:k;}
 function openDepto(id){
@@ -743,6 +745,7 @@ function openDepto(id){
   ipcSel=dep?((dep.ajusteMeses&&dep.ajusteMeses>0)?'si':'no'):'si';
   serviciosSel=dep&&Array.isArray(dep.serviciosList)?dep.serviciosList.slice():[];
   monedaSel=dep&&dep.moneda?dep.moneda:'ARS';
+  depMonedaSel=(dep&&dep.deposito&&dep.deposito.moneda)?dep.deposito.moneda:(dep&&dep.moneda?dep.moneda:'ARS');
   const o=dep?owner(dep.duenoId):null;
   const dl=[...new Set(state.duenos.map(x=>(x.apellido||x.nombre||'').trim()).filter(Boolean))].map(v=>`<option value="${esc(v)}"></option>`).join('');
   openSheet(`
@@ -817,6 +820,14 @@ function openDepto(id){
         <option value="6" ${dep&&dep.ajusteMeses===6?'selected':''}>Semestral</option>
         <option value="12" ${dep&&dep.ajusteMeses===12?'selected':''}>Anual</option></select></div>
     <div class="field"><label for="f_diavenc">Día de vencimiento del pago <span style="color:var(--muted);font-weight:400">(día corrido)</span></label><input id="f_diavenc" type="number" inputmode="numeric" min="1" max="31" placeholder="10" value="${dep&&dep.diaVencimiento?dep.diaVencimiento:''}"><div class="sub">Ej: 10 → el día 11 ya está vencido. Si se pasa, se avisa a la garantía.</div></div>
+
+    <div class="form-sec" style="margin-top:14px">Depósito de garantía <span style="color:var(--muted);font-weight:400;font-size:12px">— opcional</span></div>
+    <div class="field"><label>Moneda del depósito</label>
+      <div class="seg" id="f_depmon" role="group" aria-label="Moneda del depósito">
+        <button type="button" class="${depMonedaSel==='ARS'?'on':''}" aria-pressed="${depMonedaSel==='ARS'}" onclick="pickDepMoneda('ARS')">Pesos (ARS)</button>
+        <button type="button" class="${depMonedaSel==='USD'?'on':''}" aria-pressed="${depMonedaSel==='USD'}" onclick="pickDepMoneda('USD')">Dólares (USD)</button></div></div>
+    <div class="field"><label for="f_depmonto">Monto del depósito</label><input id="f_depmonto" type="number" inputmode="numeric" placeholder="0" value="${dep&&dep.deposito?(dep.deposito.monto||''):''}"><div class="sub">Lo que dejó el inquilino al firmar. Al terminar el contrato descontás los arreglos y el resto se le devuelve.</div></div>
+    <div class="field"><label for="f_depnota">Nota <span style="color:var(--muted);font-weight:400">— opcional</span></label><input id="f_depnota" placeholder="Ej: en efectivo, lo tiene el dueño · equivale a 1 mes" value="${dep&&dep.deposito?esc(dep.deposito.nota||''):''}"></div>
     </div>
 
     <div class="sheet-actions" style="margin-top:8px">
@@ -826,6 +837,7 @@ function openDepto(id){
 function pickEstado(v){estSel=v;const btns=document.querySelectorAll('#f_est button');btns.forEach((b,i)=>{b.classList.toggle('on',i===(v==='alquilado'?0:1));b.setAttribute('aria-pressed',String(i===(v==='alquilado'?0:1)));});const show=v==='alquilado';const inq=document.getElementById('inqSection');const con=document.getElementById('contractSection');if(inq)inq.style.display=show?'block':'none';if(con)con.style.display=show?'block':'none';}
 function toggleServ(k){const i=serviciosSel.indexOf(k);if(i>=0)serviciosSel.splice(i,1);else serviciosSel.push(k);const btns=document.querySelectorAll('#f_serv .pick-chip');SERVICIOS.forEach((s,idx)=>{if(btns[idx])btns[idx].classList.toggle('on',serviciosSel.includes(s.k));});}
 function pickMoneda(v){monedaSel=v;document.querySelectorAll('#f_mon button').forEach((b,i)=>b.classList.toggle('on',(v==='ARS')?i===0:i===1));}
+function pickDepMoneda(v){depMonedaSel=v;document.querySelectorAll('#f_depmon button').forEach((b,i)=>b.classList.toggle('on',(v==='ARS')?i===0:i===1));}
 function setFinDefault(){const ini=document.getElementById('f_ini').value;const fin=document.getElementById('f_fin');if(!ini||!fin)return;const[y,m,d]=ini.split('-').map(Number);const end=new Date(y+3,m-1,d);end.setDate(end.getDate()-1);fin.value=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');}
 function pickFlow(v){flowSel=v;document.querySelectorAll('#f_flow button').forEach((b,i)=>b.classList.toggle('on',(v==='vos')?i===0:i===1));document.getElementById('comWrap').style.display=v==='dueno'?'none':'block';}
 function pickIPC(v){ipcSel=v;document.querySelectorAll('#f_ipc button').forEach((b,i)=>b.classList.toggle('on',(v==='si')?i===0:i===1));document.getElementById('ipcFreqWrap').style.display=v==='si'?'block':'none';}
@@ -886,10 +898,13 @@ function saveDepto(id){
     const ajusteMeses=ipcSel==='si'?parseInt(document.getElementById('f_aj').value):0;
     const diaVencimiento=Math.min(31,Math.max(1,parseInt(document.getElementById('f_diavenc').value)||10));
     const serviciosList=serviciosSel.slice();
+    const prevDep=(id&&state.deptos.find(x=>x.id===id))||{};
+    const deposito={monto:num('f_depmonto'),moneda:depMonedaSel,nota:val('f_depnota')};
     data={nombre,calle,numero,piso,depto,duenoId,estado,...inq,notas,
       alquilerInicial:alqInicial,alquiler:alqInicial,moneda:monedaSel,modalidad,comisionPct:modalidad==='dueno'?0:num('f_com'),
       contratoInicio:val('f_ini'),contratoFin:val('f_fin'),diaVencimiento,
       expensas:true,servicios:serviciosList.length>0,serviciosList,
+      deposito,depositoArreglos:prevDep.depositoArreglos||[],depositoDevuelto:prevDep.depositoDevuelto||'',
       ajusteIPC:ipcSel==='si',ajusteMeses};
   }
   let target;
@@ -910,6 +925,78 @@ function saveDepto(id){
   }
 }
 function delDepto(id){if(!confirm('¿Borrar esta propiedad? Se pierden sus pagos registrados.'))return;state.deptos=state.deptos.filter(d=>d.id!==id);Object.values(state.pagos).forEach(m=>delete m[id]);save();render();toast('Propiedad borrada');}
+
+// ── Depósito de garantía: lo que dejó el inquilino al firmar; al terminar se descuentan arreglos y el resto se devuelve ──
+function depositoCalc(dep){
+  const d=dep.deposito||{};const monto=d.monto||0;const moneda=d.moneda||'ARS';
+  const arr=dep.depositoArreglos||[];
+  const usado=arr.reduce((a,b)=>a+(b.monto||0),0);
+  return{monto,moneda,usado,disponible:Math.max(0,monto-usado),arr,devuelto:dep.depositoDevuelto||''};
+}
+function depStatusTag(dep){
+  if(dep.depositoDevuelto)return ' · <span style="color:var(--green)">devuelto</span>';
+  const c=depositoCalc(dep);
+  if(c.usado>0)return ` · <span style="color:var(--muted)">disponible ${fmtMon(c.moneda,c.disponible)}</span>`;
+  return '';
+}
+function openDeposito(depId){
+  const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;
+  const c=depositoCalc(dep);
+  if(c.monto<=0){
+    openSheet(`<h3 id="sheet-title">Depósito de garantía</h3>
+      <div class="empty" style="padding:20px 0"><div class="em">🔒</div><p><strong>Esta propiedad no tiene depósito cargado.</strong><br>Editá la propiedad para agregar el monto que dejó el inquilino.</p></div>
+      <div class="sheet-actions"><button class="btn btn-ghost btn-sm" onclick="closeSheet()">Cerrar</button><button class="btn btn-primary btn-sm" onclick="closeSheet();openDepto('${depId}')">Editar propiedad</button></div>`);
+    return;
+  }
+  const arrHtml=c.arr.length
+    ?c.arr.map(a=>`<div class="mini-row mini-row-transf"><div class="mr-info"><span class="mr-name">${esc(a.concepto||'Arreglo')}</span><span class="mr-amt neg">- ${fmtMon(c.moneda,a.monto||0)}</span></div><button class="transf-chip" onclick="delArreglo('${depId}','${a.id}')" aria-label="Quitar ${esc(a.concepto||'arreglo')}">Quitar</button></div>`).join('')
+    :'<div class="sub" style="padding:6px 0">Sin arreglos ni descuentos cargados.</div>';
+  openSheet(`
+    <h3 id="sheet-title">Depósito de garantía</h3>
+    <p class="hint">${esc(dep.nombre)}${dep.inquilino?' · '+esc(dep.inquilino):''}${dep.contratoFin?' · contrato hasta '+dep.contratoFin.split('-').reverse().join('/'):''}</p>
+    ${dep.deposito&&dep.deposito.nota?`<div class="sub" style="margin:-4px 2px 10px">🔒 ${esc(dep.deposito.nota)}</div>`:''}
+    <div class="card" style="box-shadow:none;border:1px solid var(--line)">
+      <div class="liq-line"><span>Depósito recibido</span><span>${fmtMon(c.moneda,c.monto)}</span></div>
+      <div class="liq-line"><span>Usado en arreglos</span><span class="neg">- ${fmtMon(c.moneda,c.usado)}</span></div>
+      <div class="liq-line tot"><span>${c.devuelto?'Se le devolvió':'Disponible para devolver'}</span><span>${fmtMon(c.moneda,c.disponible)}</span></div>
+    </div>
+    <div class="form-sec" style="margin-top:14px">Arreglos / descuentos</div>
+    <div class="mini-list">${arrHtml}</div>
+    ${c.devuelto?'':`
+    <div class="row2" style="margin-top:8px;align-items:end">
+      <div class="field" style="flex:2"><label for="ar_concepto">Concepto</label><input id="ar_concepto" placeholder="Ej: pintura, plomería"></div>
+      <div class="field"><label for="ar_monto">Monto</label><input id="ar_monto" type="number" inputmode="numeric" placeholder="0" onkeydown="if(event.key==='Enter')addArreglo('${depId}')"></div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="addArreglo('${depId}')">+ Agregar descuento</button>`}
+    <div class="sheet-actions" style="margin-top:16px;flex-wrap:wrap">
+      ${c.devuelto
+        ?`<span class="sub" style="flex:1;align-self:center">Devuelto el ${c.devuelto.split('-').reverse().join('/')}</span><button class="btn btn-ghost btn-sm" onclick="desmarcarDepDevuelto('${depId}')">Deshacer devolución</button>`
+        :`<button class="btn btn-ghost btn-sm" onclick="closeSheet()">Cerrar</button><button class="btn btn-primary btn-sm" onclick="marcarDepDevuelto('${depId}')">Marcar devuelto (${fmtMon(c.moneda,c.disponible)})</button>`}
+    </div>`);
+}
+function addArreglo(depId){
+  const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;
+  const con=((document.getElementById('ar_concepto')||{}).value||'').trim();
+  const monto=parseFloat((document.getElementById('ar_monto')||{}).value)||0;
+  if(monto<=0){toast('Cargá el monto del arreglo');return;}
+  if(!dep.depositoArreglos)dep.depositoArreglos=[];
+  dep.depositoArreglos.push({id:uid(),concepto:con||'Arreglo',monto});
+  save();openDeposito(depId);
+}
+function delArreglo(depId,arrId){
+  const dep=state.deptos.find(d=>d.id===depId);if(!dep||!dep.depositoArreglos)return;
+  dep.depositoArreglos=dep.depositoArreglos.filter(a=>a.id!==arrId);
+  save();openDeposito(depId);
+}
+function marcarDepDevuelto(depId){
+  const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;
+  dep.depositoDevuelto=new Date().toISOString().slice(0,10);
+  save();closeSheet();render();toast('Depósito marcado como devuelto');
+}
+function desmarcarDepDevuelto(depId){
+  const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;
+  dep.depositoDevuelto='';save();openDeposito(depId);
+}
 
 const IPC_SEED={'2023-01':6.0,'2023-02':6.6,'2023-03':7.7,'2023-04':8.4,'2023-05':7.8,'2023-06':6.0,'2023-07':6.3,'2023-08':12.4,'2023-09':12.7,'2023-10':8.3,'2023-11':12.8,'2023-12':25.5,'2024-01':20.6,'2024-02':13.2,'2024-03':11.0,'2024-04':8.8,'2024-05':4.2,'2024-06':4.6,'2024-07':4.0,'2024-08':4.2,'2024-09':3.5,'2024-10':2.7,'2024-11':2.4,'2024-12':2.7};
 let IPC_CACHE=null;
@@ -1216,7 +1303,7 @@ function resetPlantilla(key){if(state.config.plantillas)delete state.config.plan
 let obStep=0, obTourOnly=false;
 function obSteps(){
   const s=[{type:'org'},
-    {emoji:'🏢',title:'Propiedades',text:'Empezá por acá: <b>cargás cada propiedad</b> con su dueño, alquiler, comisión, contrato, servicios y cómo se cobra. Adentro tenés la solapa <b>Vencimientos</b>, que te avisa qué contratos están por vencer y qué unidades están vacías para publicar a tiempo.'},
+    {emoji:'🏢',title:'Propiedades',text:'Empezá por acá: <b>cargás cada propiedad</b> con su dueño, alquiler, comisión, contrato, servicios, cómo se cobra y el <b>depósito de garantía</b> (en pesos o dólares). Al terminar el contrato descontás los arreglos y ves cuánto devolverle. Adentro tenés la solapa <b>Vencimientos</b>, que te avisa qué contratos están por vencer y qué unidades están vacías para publicar a tiempo.'},
     {emoji:'📅',title:'Seguimiento',text:'Tu tablero del mes. Con un toque marcás quién pagó <b>alquiler</b>, <b>expensas</b> y <b>servicios</b> (verde = pagó, rojo = debe). Arriba ves lo cobrado, tu comisión y una tarjeta de <b>propiedades sin cobrar</b> que, al tocarla, te filtra la lista. Desde cada una mandás el <b>recordatorio por WhatsApp</b>.'},
     {emoji:'👥',title:'Dueños',text:'Te calcula solo cuánto <b>liquidarle a cada dueño</b> y cuánto es tu comisión. Marcás las transferencias y le avisás por <b>WhatsApp</b> con el detalle por propiedad y el total. Si un dueño te debe a vos, también te lo marca.'},
     {emoji:'🛡️',title:'Garantes',text:'Agrupa tus propiedades por <b>empresa de garantía</b>: ves cuántas cubre, la masa cubierta y cuáles están en reclamo. Con un clic mandás el <b>reclamo por mail ya redactado</b>, con todas las propiedades atrasadas.'},
