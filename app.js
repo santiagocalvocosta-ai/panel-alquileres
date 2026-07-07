@@ -344,7 +344,7 @@ function renderDuenos(){
       <div class="card-top owner-top">
         <div><div class="card-name">${esc(ownerName(d.id))}</div>${metaLine}</div>
         <span class="owner-tag">${deps.length} ${deps.length===1?'propiedad':'propiedades'}</span>
-        <div class="${heroCls}"><div class="liq-hero-k">${hayPend?'💸 Falta liquidar':(cobrados?'✅ Al día':'—')}</div><div class="liq-hero-v">${heroTxt}</div><div class="liq-hero-sub">${heroSub}</div></div>
+        <div class="owner-hero-wrap"><div class="${heroCls}"><div class="liq-hero-k">${hayPend?'💸 Falta liquidar':(cobrados?'✅ Al día':'—')}</div><div class="liq-hero-v">${heroTxt}</div><div class="liq-hero-sub">${heroSub}</div></div>${wa}</div>
       </div>
       <details class="liq-details"><summary>Ver detalle del mes ${transfBadge}</summary>
         <div class="liq-summary">
@@ -355,7 +355,7 @@ function renderDuenos(){
         <div class="transf-head">Transferencias al dueño (${ymLabel(ym)})</div>
         <div class="mini-list">${rows.join('')}</div>
       </details>
-      ${wa}</div>`;
+    </div>`;
   });
   html+='</div>';
   el.innerHTML=any?html:empty('&#128101;','Los dueños todavía no tienen propiedades asignadas.','Asignalos desde “Propiedades”.');
@@ -693,7 +693,7 @@ function comisionSerie(n,cur){
 function compactMoney(v,cur){const p=cur==='USD'?'US$':'$';if(v>=1e6)return p+(v/1e6).toFixed(v>=1e7?0:1).replace('.',',')+'M';if(v>=1e3)return p+Math.round(v/1e3)+'k';return p+v;}
 function sparkline(serie,cur){
   if(!serie.length)return '';
-  const W=340,H=150,pad=6,topPad=18,botPad=30;const tops=serie.map(s=>Math.max(s.val,s.pot||s.val));const max=Math.max(...tops,1);const min=0;
+  const W=340,H=150,pad=6,topPad=26,botPad=30;const tops=serie.map(s=>Math.max(s.val,s.pot||s.val));const max=Math.max(...tops,1);const min=0;
   const n=serie.length;const bw=(W-pad*2)/n;
   const x=i=>pad+bw*i+bw*0.12;const bw2=bw*0.76;
   const y=v=>H-botPad-((v-min)/(max-min||1))*(H-topPad-botPad);
@@ -701,7 +701,7 @@ function sparkline(serie,cur){
   let bars='',vlabels='';serie.forEach((s,i)=>{const pot=s.pot||s.val;const yTop=y(pot);const yConf=y(s.val);const cx=x(i)+bw2/2;const last=i===n-1;
     // proyectado (parte no cobrada) = de yTop a yConf, rayado/claro
     const projH=Math.max(0,yConf-yTop);
-    if(projH>0.5)bars+=`<rect x="${x(i).toFixed(1)}" y="${yTop.toFixed(1)}" width="${bw2.toFixed(1)}" height="${projH.toFixed(1)}" rx="2" fill="url(#proj)" stroke="#8fc3ab" stroke-width="0.6"><title>${ymLabel(s.ym)}: proyectado ${fmtMon(cur||'ARS',pot)}</title></rect>`;
+    if(projH>0.5)bars+=`<rect x="${x(i).toFixed(1)}" y="${yTop.toFixed(1)}" width="${bw2.toFixed(1)}" height="${projH.toFixed(1)}" rx="2" fill="url(#proj)"><title>${ymLabel(s.ym)}: proyectado ${fmtMon(cur||'ARS',pot)}</title></rect>`;
     // confirmado (cobrado) = de yConf a base, verde
     const confH=Math.max(1,base-yConf);
     bars+=`<rect x="${x(i).toFixed(1)}" y="${yConf.toFixed(1)}" width="${bw2.toFixed(1)}" height="${confH.toFixed(1)}" rx="2" fill="${last?'#0f6b4f':'#7fbfa4'}"><title>${ymLabel(s.ym)}: cobrado ${fmtMon(cur||'ARS',s.val)}</title></rect>`;
@@ -1216,10 +1216,12 @@ function resetPlantilla(key){if(state.config.plantillas)delete state.config.plan
 let obStep=0, obTourOnly=false;
 function obSteps(){
   const s=[{type:'org'},
-    {emoji:'📅',title:'Mes',text:'Tu tablero del mes. Con un toque marcás quién pagó <b>alquiler</b>, <b>expensas</b> y <b>servicios</b>. Verde = pagó, rojo = debe. Arriba ves cuánto cobraste, cuánto liquidar y tu comisión.'},
-    {emoji:'👥',title:'Dueños',text:'Te calcula solo cuánto le tenés que <b>liquidar a cada dueño</b> y cuánto es <b>tu comisión</b>. Si un dueño te debe a vos, también te lo marca.'},
-    {emoji:'🔑',title:'Nuevos',text:'Te <b>avisa los contratos por vencer</b> para publicar a tiempo y no perder un mes sin alquilar. Y registrás los <b>alquileres nuevos</b> con su comisión de garantía.'},
-    {emoji:'🏢',title:'Propiedades',text:'Acá <b>cargás cada propiedad</b>: dueño, alquiler, comisión, contrato y cómo se cobra. <b>Empezá por esta pestaña.</b>'}];
+    {emoji:'🏢',title:'Propiedades',text:'Empezá por acá: <b>cargás cada propiedad</b> con su dueño, alquiler, comisión, contrato, servicios y cómo se cobra. Adentro tenés la solapa <b>Vencimientos</b>, que te avisa qué contratos están por vencer y qué unidades están vacías para publicar a tiempo.'},
+    {emoji:'📅',title:'Seguimiento',text:'Tu tablero del mes. Con un toque marcás quién pagó <b>alquiler</b>, <b>expensas</b> y <b>servicios</b> (verde = pagó, rojo = debe). Arriba ves lo cobrado, tu comisión y una tarjeta de <b>propiedades sin cobrar</b> que, al tocarla, te filtra la lista. Desde cada una mandás el <b>recordatorio por WhatsApp</b>.'},
+    {emoji:'👥',title:'Dueños',text:'Te calcula solo cuánto <b>liquidarle a cada dueño</b> y cuánto es tu comisión. Marcás las transferencias y le avisás por <b>WhatsApp</b> con el detalle por propiedad y el total. Si un dueño te debe a vos, también te lo marca.'},
+    {emoji:'🛡️',title:'Garantes',text:'Agrupa tus propiedades por <b>empresa de garantía</b>: ves cuántas cubre, la masa cubierta y cuáles están en reclamo. Con un clic mandás el <b>reclamo por mail ya redactado</b>, con todas las propiedades atrasadas.'},
+    {emoji:'📊',title:'Dashboard',text:'Tus números para mostrarle a los dueños: <b>ocupación, morosidad, comisión y vencimientos</b>. Y te tira <b>alertas de aumentos por IPC</b> cuando corresponde avisarle al inquilino.'},
+    {emoji:'⚙️',title:'Ajustes y guardado',text:'En <b>Configuración</b> ajustás los recordatorios, activás <b>Letra más grande</b> y bajás una <b>copia de seguridad</b>. Todo se guarda solo: arriba a la derecha ves “Guardando / Guardado”, y te avisa si te quedás sin conexión.'}];
   return s;
 }
 function openOnboarding(tourOnly){obTourOnly=tourOnly;obStep=tourOnly?1:0;renderOnboarding();}
