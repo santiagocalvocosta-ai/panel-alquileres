@@ -179,7 +179,7 @@ function openHistorial(){
 function renderMes(){
   const el=document.getElementById('view-mes');
   if(state.deptos.length===0){el.innerHTML=empty('&#127968;','Todavía no cargaste propiedades.','Agregá el primero desde la pestaña “Propiedades”.');return;}
-  const activos=state.deptos.filter(d=>activoEnMes(d));
+  const activos=state.deptos.filter(d=>(d.estado||'alquilado')==='alquilado'&&activoEnMes(d));
   const cobrado={ARS:0,USD:0},faltaCobrar={ARS:0,USD:0},comTotal={ARS:0,USD:0};let alDia=0;
   activos.forEach(dep=>{
     if(estaAlDia(dep))alDia++;
@@ -207,6 +207,7 @@ function renderMes(){
   const ownerFilter=ownerFilterBtn(mesOwner,'mes');
   html+=`<div class="controls"><input id="mesSearch" placeholder="Buscar propiedad o inquilino…" value="${esc(mesQuery)}" oninput="onMesSearch(this.value)"></div>
   ${ownerFilter}
+  ${sortFilterBtn('mes')}
   <div class="progress"><span>Al día ${alDia}/${activos.length}</span><span class="bar"><i style="width:${pct}%"></i></span><span>${pct}%</span></div>`;
 
   let list=activos.filter(dep=>{
@@ -255,7 +256,7 @@ function renderMes(){
   const grupos={};list.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
   const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
   oidsOrdenados.forEach(oid=>{
-    const deps=grupos[oid].sort((a,b)=>{const sa=estaAlDia(a)?1:0,sb=estaAlDia(b)?1:0;return sa-sb||(a.nombre||'').localeCompare(b.nombre||'');});
+    const deps=ordenarPor(grupos[oid],mesSort,d=>alquilerEnMes(d),d=>SEVERIDAD_COBRANZA[cobranza(d).nivel]||0);
     html+=`<h2 class="section-name">${esc(ownerName(oid))} · ${deps.length} ${deps.length===1?'propiedad':'propiedades'}</h2><div class="cards">`;
     deps.forEach(dep=>{html+=cardHtml(dep);});
     html+='</div>';
@@ -302,6 +303,52 @@ function renderOwnerFilterList(){
       ||'<div class="hint" style="padding:8px">Sin resultados.</div>';
 }
 function pickOwnerFilter(id){const ctx=ownerFilterCtx;closeSheet();if(ctx==='mes'){mesOwner=id;renderMes();}else{dashOwner=id;renderDashboard();}}
+
+/* ── Orden: A-Z / Z-A / precio / estado, disponible en Seguimiento, Propiedades y Dueños.
+   Ordena DENTRO de cada dueño (el agrupado por dueño se mantiene igual). ── */
+let mesSort='az', deptosSort='az', duenosSort='az';
+const SORT_LABELS={az:'Nombre (A-Z)',za:'Nombre (Z-A)',precio_desc:'Precio: mayor a menor',precio_asc:'Precio: menor a mayor',estado:'Estado (más urgente primero)'};
+const SORT_OPTS_BY_VIEW={mes:['az','za','precio_desc','precio_asc','estado'],deptos:['az','za','precio_desc','precio_asc','estado'],duenos:['az','za','precio_desc','precio_asc','estado']};
+const SEVERIDAD_COBRANZA={critico:4,recordar:3,pendiente:2,proximo:1,ok:0};
+function sortFilterBtn(view){
+  const cur=view==='mes'?mesSort:(view==='deptos'?deptosSort:duenosSort);
+  return `<button type="button" class="owner-filter-btn" style="margin-top:8px" onclick="openSortMenu('${view}')" aria-label="Ordenar la lista. Orden actual: ${esc(SORT_LABELS[cur])}"><span class="ofb-ico" aria-hidden="true">↕️</span><span class="ofb-label">Ordenar: ${esc(SORT_LABELS[cur])}</span><span class="ofb-caret" aria-hidden="true">▾</span></button>`;
+}
+let sortMenuView='mes';
+function openSortMenu(view){
+  sortMenuView=view;
+  const cur=view==='mes'?mesSort:(view==='deptos'?deptosSort:duenosSort);
+  const opts=SORT_OPTS_BY_VIEW[view];
+  openSheet(`<h3>Ordenar</h3>
+    <div class="of-list">${opts.map(o=>`<button type="button" class="of-item ${cur===o?'on':''}" onclick="pickSort('${o}')">
+      <span class="of-name">${esc(SORT_LABELS[o])}</span>${cur===o?'<span class="of-count">✓</span>':''}</button>`).join('')}</div>`);
+}
+function pickSort(v){
+  closeSheet();
+  if(sortMenuView==='mes'){mesSort=v;renderMes();}
+  else if(sortMenuView==='deptos'){deptosSort=v;renderDeptos();}
+  else{duenosSort=v;renderDuenos();}
+}
+/* Ordena una lista según el modo elegido. getPrecio y getSeveridad son funciones que
+   extraen, de cada elemento, el monto (para precio) y la urgencia (para estado; más alto = más urgente). */
+function ordenarPor(arr,modo,getPrecio,getSeveridad){
+  const copy=arr.slice();
+  if(modo==='za')copy.sort((a,b)=>(b.nombre||'').localeCompare(a.nombre||''));
+  else if(modo==='precio_desc')copy.sort((a,b)=>(getPrecio(b)||0)-(getPrecio(a)||0));
+  else if(modo==='precio_asc')copy.sort((a,b)=>(getPrecio(a)||0)-(getPrecio(b)||0));
+  else if(modo==='estado')copy.sort((a,b)=>(getSeveridad(b)||0)-(getSeveridad(a)||0)||(a.nombre||'').localeCompare(b.nombre||''));
+  else copy.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')); // 'az' por defecto
+  return copy;
+}
+function ownerMasa(ownerId){return state.deptos.filter(x=>x.duenoId===ownerId&&x.modalidad!=='dueno'&&activoEnMes(x)).reduce((s,x)=>s+alquilerEnMes(x),0);}
+function ownerPendienteLiquidar(ownerId){
+  let pend=0;
+  state.deptos.filter(x=>x.duenoId===ownerId&&x.modalidad!=='dueno'&&activoEnMes(x)).forEach(dep=>{
+    const p=pagos(dep.id);
+    if(p.alq){const cell=(state.pagos[ym]||{})[dep.id]||{};if(!cell.transf)pend+=montoTransfer(dep);}
+  });
+  return pend;
+}
 function ownerSelectHtml(current,onchangeFn){
   const conDeptos=state.duenos.filter(o=>state.deptos.some(d=>d.duenoId===o.id)).slice().sort((a,b)=>ownerName(a.id).localeCompare(ownerName(b.id)));
   const opts=['<option value="all"'+(current==='all'?' selected':'')+'>👥 Todos los dueños</option>']
@@ -313,9 +360,25 @@ function chip(dep,k,lbl,amt,paid,na,noAmount){if(na)return `<div class="chip na"
 function renderDuenos(){
   const el=document.getElementById('view-duenos');
   if(state.duenos.length===0){el.innerHTML=empty('&#128101;','No hay dueños cargados.','Agregalos desde la pestaña “Propiedades”.');return;}
-  let html='<div class="cards">',any=false;
-  state.duenos.forEach(d=>{
-    const deps=state.deptos.filter(x=>x.duenoId===d.id&&activoEnMes(x));if(deps.length===0)return;any=true;
+  let html=sortFilterBtn('duenos')+'<div class="cards">';
+  let duenosOrdenados=state.duenos.slice().sort((a,b)=>ownerName(a.id).localeCompare(ownerName(b.id)));
+  if(duenosSort==='za')duenosOrdenados.sort((a,b)=>ownerName(b.id).localeCompare(ownerName(a.id)));
+  else if(duenosSort==='precio_desc')duenosOrdenados.sort((a,b)=>ownerMasa(b.id)-ownerMasa(a.id));
+  else if(duenosSort==='precio_asc')duenosOrdenados.sort((a,b)=>ownerMasa(a.id)-ownerMasa(b.id));
+  else if(duenosSort==='estado')duenosOrdenados.sort((a,b)=>ownerPendienteLiquidar(b.id)-ownerPendienteLiquidar(a.id)||ownerName(a.id).localeCompare(ownerName(b.id)));
+  duenosOrdenados.forEach(d=>{
+    const todasSusProps=state.deptos.filter(x=>x.duenoId===d.id);
+    const editBtns=`<div class="owner-edit-acts"><button class="btn-ghost btn-sm" onclick="editOwner('${d.id}')">Editar</button>${todasSusProps.length===0?`<button class="btn-danger btn-sm" onclick="delOwner('${d.id}')">Borrar</button>`:''}</div>`;
+    const deps=todasSusProps.filter(x=>activoEnMes(x));
+    if(deps.length===0){
+      html+=`<div class="card owner-card">
+        <div class="card-top owner-top">
+          <div><div class="card-name">${esc(ownerName(d.id))}</div><div class="owner-meta">${todasSusProps.length?todasSusProps.length+' '+(todasSusProps.length===1?'propiedad':'propiedades')+' · ninguna activa este mes':'Todavía sin propiedades asignadas'}</div></div>
+          ${editBtns}
+        </div>
+      </div>`;
+      return;
+    }
     const cobrado={ARS:0,USD:0},com={ARS:0,USD:0},neto={ARS:0,USD:0},pendLiq={ARS:0,USD:0},masa={ARS:0,USD:0};const rows=[],transferidos=[];let pendTransf=0,cobrados=0,gestionables=0;
     deps.forEach(dep=>{const p=pagos(dep.id);const rent=alquilerEnMes(dep);const cur=dep.moneda||'ARS';const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;
       if(dep.modalidad!=='dueno'){masa[cur]+=rent;gestionables++;}
@@ -349,6 +412,7 @@ function renderDuenos(){
       <div class="card-top owner-top">
         <div><div class="card-name">${esc(ownerName(d.id))}</div>${metaLine}</div>
         <span class="owner-tag">${deps.length} ${deps.length===1?'propiedad':'propiedades'}</span>
+        ${editBtns}
         <div class="owner-hero-wrap"><div class="${heroCls}"><div class="liq-hero-k">${hayPend?'💸 Falta liquidar':(cobrados?'✅ Al día':'—')}</div><div class="liq-hero-v">${heroTxt}</div><div class="liq-hero-sub">${heroSub}</div></div>${wa}</div>
       </div>
       <details class="liq-details"><summary>Ver detalle del mes ${transfBadge}</summary>
@@ -363,7 +427,7 @@ function renderDuenos(){
     </div>`;
   });
   html+='</div>';
-  el.innerHTML=any?html:empty('&#128101;','Los dueños todavía no tienen propiedades asignadas.','Asignalos desde “Propiedades”.');
+  el.innerHTML=html;
 }
 function montoTransfer(dep,m){m=m||ym;const rent=alquilerEnMes(dep,m);const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;const cell=(state.pagos[m]||{})[dep.id]||{};const desc=cell.transfDesc||0;return Math.max(0,rent-c-desc);}
 
@@ -521,10 +585,12 @@ function renderDeptos(){
   if(pipe.length){html+=`<button class="alert" onclick="goVencimientos()"><span class="txt">⏳ ${pipe.length} ${pipe.length===1?'propiedad necesita':'propiedades necesitan'} atención — vencimientos / disponibles</span><span class="go">›</span></button>`;}
   html+=`<div class="add-fab"><button class="btn btn-primary" onclick="openAgregar()">+ Agregar propiedad</button></div>`;
   if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus propiedades.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
+  html+=sortFilterBtn('deptos');
   const grupos={};state.deptos.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
-  Object.keys(grupos).forEach(oid=>{
+  const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
+  oidsOrdenados.forEach(oid=>{
     html+=`<h2 class="section-name">${esc(ownerName(oid))}</h2><div class="cards">`;
-    grupos[oid].forEach(dep=>{
+    ordenarPor(grupos[oid],deptosSort,d=>d.alquiler,d=>ocupacion(d).urg).forEach(dep=>{
       const oc=ocupacion(dep);
       html+=`<div class="card">
         <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(dep.inquilino||'Sin inquilino')}</div></div>
@@ -1070,6 +1136,7 @@ function descargarPlantilla(){
 function procesarExcel(input){
   const file=input.files&&input.files[0];if(!file)return;
   if(typeof XLSX==='undefined'){toast('No pudimos leer el archivo. Recargá la página y probá de nuevo.');return;}
+  openSheet(`<div style="text-align:center;padding:34px 10px"><div style="font-size:36px;margin-bottom:12px">⏳</div><h3>Cargando…</h3><p class="hint">Estamos leyendo el archivo y cargando las propiedades. No cierres esta pantalla.</p></div>`);
   const reader=new FileReader();
   reader.onload=e=>{
     try{
@@ -1077,7 +1144,7 @@ function procesarExcel(input){
       const ws=wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
       importarFilas(rows);
-    }catch(err){console.warn(err);toast('No pudimos leer el Excel. Fijate de usar la plantilla.');}
+    }catch(err){console.warn(err);toast('No pudimos leer el Excel. Fijate de usar la plantilla.');openImportExcel();}
     input.value='';
   };
   reader.readAsArrayBuffer(file);
@@ -1297,7 +1364,6 @@ function delAlquiler(id){if(!confirm('¿Borrar este registro?'))return;state.alq
 
 function openSettings(){
   const cfg=state.config||{};const org=cfg.organizador||{};const cob=cfg.cobranza||{diasRecordar:5,diasReclamar:10};
-  const ownersHtml=state.duenos.length?state.duenos.map(o=>{const n=state.deptos.filter(d=>d.duenoId===o.id).length;return `<div class="owner-row"><div><div class="nm">${esc(ownerName(o.id))}</div><div class="sm">${n} ${n===1?'propiedad':'propiedades'}${o.telefono?' · 📱 '+esc(o.telefono):''}</div></div><div class="acts"><button class="btn-ghost" onclick="editOwner('${o.id}')">Editar</button>${n===0?`<button class="btn-danger" onclick="delOwner('${o.id}')">Borrar</button>`:''}</div></div>`;}).join(''):'<div class="sm" style="color:var(--muted);font-size:13px">Todavía no hay dueños.</div>';
   openSheet(`
     <h3>Ajustes</h3>
     <p class="hint">Los datos viven en este dispositivo. Guardá una copia cada tanto.</p>
@@ -1307,11 +1373,10 @@ function openSettings(){
     <div class="settings-item"><div><div class="t">Letra más grande</div><div class="d">Agranda los textos de toda la app</div></div><button class="btn ${cfg.textoGrande?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleTextoGrande()">${cfg.textoGrande?'Activada ✓':'Activar'}</button></div>
     <div class="settings-item"><div><div class="t">Vencimiento por defecto</div><div class="d">El pago vence el día ${cob.diaVencimiento||10} · después se avisa a la garantía</div></div><button class="btn btn-ghost btn-sm" onclick="editCobranza()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Mensajes</div><div class="d">Personalizá los textos automáticos</div></div><button class="btn btn-ghost btn-sm" onclick="editMensajes()">Editar</button></div>
+    <div class="settings-item"><div><div class="t">Excel de propiedades</div><div class="d">Bajá todas tus propiedades a un Excel — si algún día reseteás todo, lo volvés a subir y quedan cargadas de nuevo</div></div><button class="btn btn-ghost btn-sm" onclick="exportarExcel()">Descargar</button></div>
     <div class="settings-item"><div><div class="t">Descargar copia</div><div class="d">Archivo con todos tus datos</div></div><button class="btn btn-ghost btn-sm" onclick="exportData()">Descargar</button></div>
     <div class="settings-item"><div><div class="t">Restaurar copia</div><div class="d">Cargar un archivo guardado</div></div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">Elegir</button></div>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
-    <h2 class="section" style="margin-top:20px">Dueños</h2>
-    <div class="card" style="box-shadow:none;border:1px solid var(--line)">${ownersHtml}</div>
     <div class="settings-item" style="margin-top:14px"><div><div class="t">Cerrar sesión</div><div class="d">Salís de la cuenta en este dispositivo</div></div><button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button></div>
     <div class="settings-item" style="margin-top:14px"><div><div class="t" style="color:var(--red)">Borrar todo</div><div class="d">Empezar de cero</div></div><button class="btn btn-danger btn-sm" onclick="wipe()">Borrar</button></div>
     <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:16px">${state.deptos.length} propiedades · ${state.duenos.length} dueños · ${state.alquileres.length} alquileres</div>`);
@@ -1326,12 +1391,38 @@ function editOwner(id){const o=owner(id);
       <div class="field"><label for="o_dni">DNI</label><input id="o_dni" inputmode="numeric" value="${esc(o.dni||'')}"></div>
       <div class="field"><label for="o_tel">Teléfono</label><input id="o_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${esc(o.telefono||'')}"></div></div>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" onclick="guardedNav(openSettings)">Volver</button>
+      <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveOwner('${id}')">Guardar</button></div>`,true);
 }
-function saveOwner(id){const o=owner(id);const nm=document.getElementById('o_nombre').value.trim();const ap=document.getElementById('o_ap').value.trim();if(!ap&&!nm){toast('Poné apellido y nombre');return;}o.apellido=ap;o.nombre=nm;o.dni=document.getElementById('o_dni').value.trim();o.telefono=document.getElementById('o_tel').value.trim();save();openSettings();render();toast('Dueño actualizado');}
-function delOwner(id){if(!confirm('¿Borrar este dueño?'))return;state.duenos=state.duenos.filter(d=>d.id!==id);save();openSettings();render();toast('Dueño borrado');}
+function saveOwner(id){const o=owner(id);const nm=document.getElementById('o_nombre').value.trim();const ap=document.getElementById('o_ap').value.trim();if(!ap&&!nm){toast('Poné apellido y nombre');return;}o.apellido=ap;o.nombre=nm;o.dni=document.getElementById('o_dni').value.trim();o.telefono=document.getElementById('o_tel').value.trim();save();closeSheet();render();toast('Dueño actualizado');}
+function delOwner(id){if(!confirm('¿Borrar este dueño? Esta acción no se puede deshacer.'))return;state.duenos=state.duenos.filter(d=>d.id!==id);save();render();toast('Dueño borrado');}
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='alquileres-'+ymNow()+'.json';a.click();toast('Copia descargada');}
+function exportarExcel(){
+  if(typeof XLSX==='undefined'){toast('Se está cargando el generador… probá de nuevo en unos segundos');return;}
+  if(!state.deptos.length){toast('Todavía no cargaste ninguna propiedad');return;}
+  const filas=state.deptos.map(d=>{
+    const o=owner(d.duenoId)||{};
+    const dep=d.deposito||{};
+    return [
+      d.calle||'',d.numero||'',d.piso||'',d.depto||'',
+      d.estado==='vacio'?'vacío':'alquilado',
+      o.apellido||'',o.nombre||'',o.dni||'',o.telefono||'',
+      d.inqApellido||'',d.inqNombre||'',d.inqDni||'',d.telInquilino||'',
+      d.garantiaEmpresa||'',d.garantiaMail||'',
+      d.moneda||'ARS',d.alquilerInicial||'',d.modalidad==='dueno'?'dueño':'vos',d.comisionPct||'',
+      d.ajusteIPC?'sí':'no',d.ajusteMeses||'',d.diaVencimiento||'',
+      d.contratoInicio||'',d.contratoFin||'',
+      (d.serviciosList||[]).join(';'),
+      dep.monto||'',dep.moneda||'',dep.nota||'',
+      d.notas||''
+    ];
+  });
+  const ws=XLSX.utils.aoa_to_sheet([PLANTILLA_COLS,...filas]);
+  ws['!cols']=PLANTILLA_COLS.map(()=>({wch:18}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Propiedades');
+  XLSX.writeFile(wb,'propiedades-'+ymNow()+'.xlsx');
+  toast('Excel descargado — lo podés volver a subir desde "Agregar propiedad › Cargar desde Excel"');
+}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.duenos)throw 0;if(!d.config)d.config={onboarded:true,organizador:{nombre:'',tel:''},pin:''};state=d;save();closeSheet();render();toast('Datos restaurados');}catch(x){toast('Archivo inválido');}};r.readAsText(f);}
 function wipe(){if(!confirm('¿Borrar TODOS los datos? No se puede deshacer.'))return;state={duenos:[],deptos:[],pagos:{},alquileres:[],config:state.config};save();closeSheet();render();toast('Todo borrado');}
 
@@ -1487,7 +1578,107 @@ function captureOb(){const n=document.getElementById('ob_nombre');if(n)state.con
 function obBack(){captureOb();if(obStep>0){obStep--;renderOnboarding();}}
 function obNext(){captureOb();const total=obSteps().length;if(obStep<total-1){obStep++;renderOnboarding();}else{finishOnboarding();}}
 function finishOnboarding(){state.config.onboarded=true;save();hideGate();if(!obTourOnly){go('deptos');setTimeout(()=>toast('¡Listo! Empezá cargando tu primera propiedad'),300);}else{toast('Tutorial terminado');}}
-function startTour(){closeSheet();openOnboarding(true);}
+function startTour(){_sheetGuarded=false;_closeSheetNow();tourStep=0;tourRender();}
+
+/* ══════════ Tutorial interactivo: recorre la app REAL, paso a paso ══════════
+   No son diapositivas ilustradas: en cada paso resalta el botón o campo real
+   de la pantalla y navega sola (abre fichas, cambia de pestaña) mientras explica
+   qué hace cada cosa, desde cargar una propiedad hasta marcarla en Seguimiento. */
+let tourStep=0;
+function tourStepsList(){
+  return [
+    {action:()=>{go('deptos');},target:'.add-fab .btn-primary',
+      title:'Agregar una propiedad',text:'Para cargar una propiedad nueva, tocás acá.'},
+    {action:()=>{openAgregar();},target:'.choice-card',
+      title:'Cómo cargarla',text:'La cargás a mano, importás varias juntas desde un Excel, o (pronto) subís el contrato y la IA completa los datos por vos.'},
+    {action:()=>{openDepto();},target:'#f_calle',
+      title:'Dirección',text:'Calle y número son los únicos datos obligatorios de la propiedad. El resto lo completás si lo tenés.'},
+    {action:()=>{},target:'#f_est',
+      title:'Estado',text:'Elegís si ya tiene inquilino ("Alquilado") o todavía está vacía.'},
+    {action:()=>{},target:'#f_oap',
+      title:'El dueño',text:'De quién es la propiedad. Si ya cargaste ese dueño antes, empezá a escribir y aparece solo — no lo dupliques.'},
+    {action:()=>{},target:'#f_alq',
+      title:'El alquiler',text:'El monto pactado al firmar. Si tiene ajuste por IPC, la app va actualizando sola el valor — no hace falta que lo edites vos cada vez.'},
+    {action:()=>{},target:'.sheet-actions .btn-primary',
+      title:'Guardar',text:'Guardás y ya queda cargada. Si falta algo obligatorio, te avisamos abajo, en la pantalla, y no se pierde nada de lo que ya escribiste.'},
+    {action:()=>{_sheetGuarded=false;_closeSheetNow();go('deptos');},target:'#view-deptos .card',
+      title:'Ya está cargada',text:'Así se ve tu propiedad. Desde acá la editás, cargás el depósito de garantía o la borrás.',
+      fallbackText:'Cuando cargues tu primera propiedad, así se va a ver acá, agrupada por dueño.'},
+    {action:()=>{go('mes');},target:'#view-mes .chips .chip',
+      title:'Marcar pagos',text:'Cada mes, un toque acá marca el alquiler, las expensas o los servicios como pagados. Así de simple — nada de anotarlo aparte.',
+      fallbackText:'Acá vas a marcar, mes a mes, qué se pagó de cada propiedad.'},
+    {action:()=>{},target:'.tab[data-tab="dashboard"]',
+      title:'Tus números',text:'Y en Dashboard tenés todo listo para mostrarle a los dueños. Con esto ya sabés lo esencial — ¡probalo con tu primera propiedad real!'}
+  ];
+}
+function tourRender(){
+  const steps=tourStepsList();
+  if(tourStep<0)tourStep=0;
+  if(tourStep>=steps.length){tourEnd();return;}
+  const step=steps[tourStep];
+  try{step.action&&step.action();}catch(e){console.warn(e);}
+  tourPosition(step);
+}
+function tourPosition(step){
+  let bg=document.getElementById('tourBg');
+  if(!bg){bg=document.createElement('div');bg.id='tourBg';bg.className='tour-bg';document.body.appendChild(bg);}
+  let sp=document.getElementById('tourSpot');
+  if(!sp){sp=document.createElement('div');sp.id='tourSpot';sp.className='tour-spot';document.body.appendChild(sp);}
+  let tt=document.getElementById('tourTip');
+  if(!tt){tt=document.createElement('div');tt.id='tourTip';tt.className='tour-tip';document.body.appendChild(tt);}
+  const steps=tourStepsList();
+  const isLast=tourStep===steps.length-1;
+  const nav=`<div class="tour-nav">
+    <button type="button" class="tour-skip" onclick="tourEnd()">Saltar</button>
+    <div class="tour-dots">${steps.map((_,i)=>`<span class="dot ${i===tourStep?'on':''}"></span>`).join('')}</div>
+    <div style="display:flex;gap:8px">
+      ${tourStep>0?`<button type="button" class="btn btn-ghost btn-sm" onclick="tourBack()">Atrás</button>`:''}
+      <button type="button" class="btn btn-primary btn-sm" onclick="tourNext()">${isLast?'Listo':'Siguiente'}</button>
+    </div></div>`;
+  const elNow=document.querySelector(step.target);
+  if(elNow){
+    // Ojo: NO guardamos el elemento y lo usamos después del timeout — un render()
+    // async de fondo (ej. ensureIPC al terminar de cargar) puede reemplazar el DOM
+    // mientras esperamos, dejando esa referencia vieja "colgada" (fuera del documento,
+    // con rect 0,0,0,0). Por eso volvemos a buscar el target recién al medir.
+    // Scroll instantáneo (no 'smooth'): si mediamos la posición mientras el scroll
+    // animado todavía se está moviendo, el tooltip termina calculado mal — a veces
+    // hasta fuera de la pantalla. El delay de 260ms es para esperar a que termine la
+    // animación de apertura de la ficha (si el paso abrió una), no del scroll.
+    setTimeout(()=>{
+      const el=document.querySelector(step.target);
+      if(!el){tourPosition(step);return;} // desapareció/cambió: reintentar el cálculo de cero
+      el.scrollIntoView({block:'center'});
+      const r=el.getBoundingClientRect();
+      sp.style.display='block';
+      sp.style.top=(r.top-6)+'px';sp.style.left=(r.left-6)+'px';
+      sp.style.width=(r.width+12)+'px';sp.style.height=(r.height+12)+'px';
+      tt.style.transform='';
+      tt.innerHTML=`<div class="tour-tip-title">${esc(step.title)}</div><div class="tour-tip-text">${esc(step.text)}</div>${nav}`;
+      const tr=tt.getBoundingClientRect();
+      let top=r.bottom+14;
+      if(top+tr.height>window.innerHeight-10)top=Math.max(10,r.top-tr.height-14);
+      top=Math.min(Math.max(10,top),window.innerHeight-tr.height-10);
+      let left=Math.min(Math.max(10,r.left),window.innerWidth-tr.width-10);
+      tt.style.top=top+'px';tt.style.left=left+'px';
+    },260);
+  }else{
+    sp.style.display='none';
+    tt.style.transform='translate(-50%,-50%)';
+    tt.style.top='50%';tt.style.left='50%';
+    tt.innerHTML=`<div class="tour-tip-title">${esc(step.title)}</div><div class="tour-tip-text">${esc(step.fallbackText||step.text)}</div>${nav}`;
+  }
+  bg.style.display='block';
+}
+function tourNext(){tourStep++;tourRender();}
+function tourBack(){if(tourStep>0){tourStep--;tourRender();}}
+function tourEnd(){
+  _sheetGuarded=false;_closeSheetNow();
+  const bg=document.getElementById('tourBg');if(bg)bg.remove();
+  const sp=document.getElementById('tourSpot');if(sp)sp.remove();
+  const tt=document.getElementById('tourTip');if(tt)tt.remove();
+  toast('Tutorial terminado');
+}
 
 function boot(){applyTextoGrande();render();if(!state.config.onboarded){openOnboarding(false);}ensureIPC();}
 function applyTextoGrande(){document.body.classList.toggle('big-text',!!(state.config&&state.config.textoGrande));}
