@@ -255,7 +255,7 @@ function renderMes(){
   const grupos={};list.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
   const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
   oidsOrdenados.forEach(oid=>{
-    const deps=grupos[oid].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+    const deps=grupos[oid].sort((a,b)=>{const sa=estaAlDia(a)?1:0,sb=estaAlDia(b)?1:0;return sa-sb||(a.nombre||'').localeCompare(b.nombre||'');});
     html+=`<h2 class="section-name">${esc(ownerName(oid))} · ${deps.length} ${deps.length===1?'propiedad':'propiedades'}</h2><div class="cards">`;
     deps.forEach(dep=>{html+=cardHtml(dep);});
     html+='</div>';
@@ -314,8 +314,7 @@ function renderDuenos(){
   const el=document.getElementById('view-duenos');
   if(state.duenos.length===0){el.innerHTML=empty('&#128101;','No hay dueños cargados.','Agregalos desde la pestaña “Propiedades”.');return;}
   let html='<div class="cards">',any=false;
-  const duenosOrdenados=state.duenos.slice().sort((a,b)=>ownerName(a.id).localeCompare(ownerName(b.id)));
-  duenosOrdenados.forEach(d=>{
+  state.duenos.forEach(d=>{
     const deps=state.deptos.filter(x=>x.duenoId===d.id&&activoEnMes(x));if(deps.length===0)return;any=true;
     const cobrado={ARS:0,USD:0},com={ARS:0,USD:0},neto={ARS:0,USD:0},pendLiq={ARS:0,USD:0},masa={ARS:0,USD:0};const rows=[],transferidos=[];let pendTransf=0,cobrados=0,gestionables=0;
     deps.forEach(dep=>{const p=pagos(dep.id);const rent=alquilerEnMes(dep);const cur=dep.moneda||'ARS';const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;
@@ -523,10 +522,9 @@ function renderDeptos(){
   html+=`<div class="add-fab"><button class="btn btn-primary" onclick="openAgregar()">+ Agregar propiedad</button></div>`;
   if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus propiedades.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
   const grupos={};state.deptos.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
-  const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
-  oidsOrdenados.forEach(oid=>{
+  Object.keys(grupos).forEach(oid=>{
     html+=`<h2 class="section-name">${esc(ownerName(oid))}</h2><div class="cards">`;
-    grupos[oid].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).forEach(dep=>{
+    grupos[oid].forEach(dep=>{
       const oc=ocupacion(dep);
       html+=`<div class="card">
         <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(dep.inquilino||'Sin inquilino')}</div></div>
@@ -1302,21 +1300,20 @@ function openSettings(){
   const ownersHtml=state.duenos.length?state.duenos.map(o=>{const n=state.deptos.filter(d=>d.duenoId===o.id).length;return `<div class="owner-row"><div><div class="nm">${esc(ownerName(o.id))}</div><div class="sm">${n} ${n===1?'propiedad':'propiedades'}${o.telefono?' · 📱 '+esc(o.telefono):''}</div></div><div class="acts"><button class="btn-ghost" onclick="editOwner('${o.id}')">Editar</button>${n===0?`<button class="btn-danger" onclick="delOwner('${o.id}')">Borrar</button>`:''}</div></div>`;}).join(''):'<div class="sm" style="color:var(--muted);font-size:13px">Todavía no hay dueños.</div>';
   openSheet(`
     <h3>Ajustes</h3>
-    <p class="hint">${sbUser?'Todo lo que cargás se guarda solo, automáticamente, en la nube — podés entrar desde otro celu o computadora y vas a ver lo mismo.':'Los datos viven en este dispositivo. Guardá una copia cada tanto.'}</p>
+    <p class="hint">Los datos viven en este dispositivo. Guardá una copia cada tanto.</p>
     <div class="settings-item"><div><div class="t">Tu perfil</div><div class="d">${org.nombre?esc(org.nombre):'Sin nombre'}${org.tel?' · '+esc(org.tel):''}</div></div><button class="btn btn-ghost btn-sm" onclick="editOrganizador()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Cambiar contraseña</div><div class="d">Actualizá tu clave de acceso</div></div><button class="btn btn-ghost btn-sm" onclick="editPassword()">Cambiar</button></div>
     <div class="settings-item"><div><div class="t">Ver tutorial</div><div class="d">Repasá cómo funciona el panel</div></div><button class="btn btn-ghost btn-sm" onclick="startTour()">Ver</button></div>
     <div class="settings-item"><div><div class="t">Letra más grande</div><div class="d">Agranda los textos de toda la app</div></div><button class="btn ${cfg.textoGrande?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleTextoGrande()">${cfg.textoGrande?'Activada ✓':'Activar'}</button></div>
     <div class="settings-item"><div><div class="t">Vencimiento por defecto</div><div class="d">El pago vence el día ${cob.diaVencimiento||10} · después se avisa a la garantía</div></div><button class="btn btn-ghost btn-sm" onclick="editCobranza()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Mensajes</div><div class="d">Personalizá los textos automáticos</div></div><button class="btn btn-ghost btn-sm" onclick="editMensajes()">Editar</button></div>
-    <div class="settings-item"><div><div class="t">Excel de propiedades</div><div class="d">Bajá todas tus propiedades a un Excel — si algún día reseteás todo, lo volvés a subir y quedan cargadas de nuevo</div></div><button class="btn btn-ghost btn-sm" onclick="exportarExcel()">Descargar</button></div>
-    <div class="settings-item"><div><div class="t">Descargar copia</div><div class="d">Archivo con todos tus datos (incluye pagos e historial)</div></div><button class="btn btn-ghost btn-sm" onclick="exportData()">Descargar</button></div>
+    <div class="settings-item"><div><div class="t">Descargar copia</div><div class="d">Archivo con todos tus datos</div></div><button class="btn btn-ghost btn-sm" onclick="exportData()">Descargar</button></div>
     <div class="settings-item"><div><div class="t">Restaurar copia</div><div class="d">Cargar un archivo guardado</div></div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">Elegir</button></div>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
     <h2 class="section" style="margin-top:20px">Dueños</h2>
     <div class="card" style="box-shadow:none;border:1px solid var(--line)">${ownersHtml}</div>
     <div class="settings-item" style="margin-top:14px"><div><div class="t">Cerrar sesión</div><div class="d">Salís de la cuenta en este dispositivo</div></div><button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button></div>
-    <div class="settings-item" style="margin-top:14px"><div><div class="t" style="color:var(--red)">Borrar todo</div><div class="d">Empezar de cero — descargá antes el Excel o la copia si después la vas a necesitar</div></div><button class="btn btn-danger btn-sm" onclick="wipe()">Borrar</button></div>
+    <div class="settings-item" style="margin-top:14px"><div><div class="t" style="color:var(--red)">Borrar todo</div><div class="d">Empezar de cero</div></div><button class="btn btn-danger btn-sm" onclick="wipe()">Borrar</button></div>
     <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:16px">${state.deptos.length} propiedades · ${state.duenos.length} dueños · ${state.alquileres.length} alquileres</div>`);
 }
 function editOwner(id){const o=owner(id);
@@ -1335,32 +1332,6 @@ function editOwner(id){const o=owner(id);
 function saveOwner(id){const o=owner(id);const nm=document.getElementById('o_nombre').value.trim();const ap=document.getElementById('o_ap').value.trim();if(!ap&&!nm){toast('Poné apellido y nombre');return;}o.apellido=ap;o.nombre=nm;o.dni=document.getElementById('o_dni').value.trim();o.telefono=document.getElementById('o_tel').value.trim();save();openSettings();render();toast('Dueño actualizado');}
 function delOwner(id){if(!confirm('¿Borrar este dueño?'))return;state.duenos=state.duenos.filter(d=>d.id!==id);save();openSettings();render();toast('Dueño borrado');}
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='alquileres-'+ymNow()+'.json';a.click();toast('Copia descargada');}
-function exportarExcel(){
-  if(typeof XLSX==='undefined'){toast('Se está cargando el generador… probá de nuevo en unos segundos');return;}
-  if(!state.deptos.length){toast('Todavía no cargaste ninguna propiedad');return;}
-  const filas=state.deptos.map(d=>{
-    const o=owner(d.duenoId)||{};
-    const dep=d.deposito||{};
-    return [
-      d.calle||'',d.numero||'',d.piso||'',d.depto||'',
-      d.estado==='vacio'?'vacío':'alquilado',
-      o.apellido||'',o.nombre||'',o.dni||'',o.telefono||'',
-      d.inqApellido||'',d.inqNombre||'',d.inqDni||'',d.telInquilino||'',
-      d.garantiaEmpresa||'',d.garantiaMail||'',
-      d.moneda||'ARS',d.alquilerInicial||'',d.modalidad==='dueno'?'dueño':'vos',d.comisionPct||'',
-      d.ajusteIPC?'sí':'no',d.ajusteMeses||'',d.diaVencimiento||'',
-      d.contratoInicio||'',d.contratoFin||'',
-      (d.serviciosList||[]).join(';'),
-      dep.monto||'',dep.moneda||'',dep.nota||'',
-      d.notas||''
-    ];
-  });
-  const ws=XLSX.utils.aoa_to_sheet([PLANTILLA_COLS,...filas]);
-  ws['!cols']=PLANTILLA_COLS.map(()=>({wch:18}));
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Propiedades');
-  XLSX.writeFile(wb,'propiedades-'+ymNow()+'.xlsx');
-  toast('Excel descargado — lo podés volver a subir desde "Agregar propiedad › Cargar desde Excel"');
-}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.duenos)throw 0;if(!d.config)d.config={onboarded:true,organizador:{nombre:'',tel:''},pin:''};state=d;save();closeSheet();render();toast('Datos restaurados');}catch(x){toast('Archivo inválido');}};r.readAsText(f);}
 function wipe(){if(!confirm('¿Borrar TODOS los datos? No se puede deshacer.'))return;state={duenos:[],deptos:[],pagos:{},alquileres:[],config:state.config};save();closeSheet();render();toast('Todo borrado');}
 
