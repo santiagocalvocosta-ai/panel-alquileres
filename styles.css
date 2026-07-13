@@ -399,19 +399,25 @@
        Solo en desktop. Seguimiento, Propiedades, Vencimientos y Garantes.
        ═══════════════════════════════════════════════════════════ */
 
-    /* ── Base común: contenedor .cards como tabla ────────────────── */
+    /* ── Base común: contenedor .cards como UNA sola grilla compartida por todas las filas.
+       Antes cada .card era su propio grid independiente: con columnas en fr/auto, el ancho de
+       cada columna terminaba dependiendo de qué contenido tenía ESA fila puntual (ej: garantía,
+       depósito, WhatsApp), así que filas distintas quedaban desalineadas entre sí. Con subgrid,
+       las columnas se calculan UNA sola vez para toda la tabla — todas las filas comparten
+       exactamente el mismo ancho por columna, y encima se ajustan solas al contenido. ── */
     #view-mes .cards,
     #view-deptos .cards,
     #view-alquileres .cards{
-      display:block;background:var(--surface);border-radius:12px;
+      display:grid;background:var(--surface);border-radius:12px;
       box-shadow:0 1px 3px rgba(0,0,0,.05),0 1px 12px rgba(0,0,0,.035);
-      overflow:hidden;margin-bottom:22px;
+      overflow:hidden;margin-bottom:22px;align-items:stretch;
     }
 
-    /* Header de tabla (::before del .cards) */
+    /* Header de tabla (::before del .cards): pseudo-elemento como primera fila, ocupa todas las columnas */
     #view-mes .cards::before,
     #view-deptos .cards::before,
     #view-alquileres .cards::before{
+      grid-column:1/-1;
       display:block;padding:8px 16px;
       font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
       color:#94a3b8;background:#f8fafc;
@@ -421,24 +427,24 @@
     #view-deptos .cards::before{content:'Propiedades'}
     #view-alquileres .cards::before{content:'Vencimientos'}
 
-    /* Grupo de dueño (section-name) por encima de su tabla. Tiene que centrarse exactamente
-       igual que .cards (mismo max-width, mismo auto-margin) para que el título quede a la
-       misma altura horizontal que el contenido de las filas de abajo. */
+    /* Grupo de dueño (section-name) por encima de su tabla: mismo ancho que .cards (sin tope
+       propio) para que el título quede exactamente alineado con el contenido de abajo. */
     #view-mes .section-name,
     #view-deptos .section-name{
       font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
       color:var(--muted);background:transparent;
-      padding:18px 0 8px 14px;margin:0 auto;border:none;
-      max-width:920px;
+      padding:18px 0 8px 14px;margin:0;border:none;
     }
 
-    /* ── Fila base (.card) para las vistas tabla ─────────────────── */
+    /* ── Fila base (.card): subgrid de columnas — hereda los mismos límites de columna que
+       .cards, así que su contenido siempre cae exactamente en el mismo lugar que las demás filas. ── */
     #view-mes .card,
     #view-deptos .card,
     #view-alquileres .card{
+      display:grid;grid-template-columns:subgrid;grid-column:1/-1;
       background:#fff;box-shadow:none;border-radius:0;margin:0;
       border-bottom:1px solid #f1f5f9;transition:background .12s;
-      align-items:center;
+      align-items:center;padding:0;min-height:54px;
     }
     #view-mes .card:last-child,
     #view-deptos .card:last-child,
@@ -447,24 +453,19 @@
     #view-deptos .card:hover,
     #view-alquileres .card:hover{background:rgba(15,107,79,.03)}
 
-    /* ── SEGUIMIENTO: 5 columnas fijas (Inquilino · Estado · Alquiler · Expensas · Servicios).
-       Columnas en px, no fr: cada fila es un grid independiente, así que con fracciones el
-       ancho de cada columna terminaba dependiendo de qué contenido tenía ESA fila (por ej. si
-       tenía o no el botón de WhatsApp/garantía), y las filas quedaban desalineadas entre sí.
-       Con columnas fijas todas las filas miden exactamente lo mismo, siempre. ── */
-    #view-mes .card{
-      display:grid;
-      grid-template-columns:250px 90px 110px 110px 110px 230px;
-      padding:0;min-height:54px;
+    /* ── SEGUIMIENTO: 6 columnas que se ajustan solas (Inquilino · Estado · Alquiler ·
+       Expensas · Servicios · Acciones). Inquilino queda a la izquierda; el resto, centrado. ── */
+    #view-mes .cards{
+      grid-template-columns:minmax(170px,1.7fr) minmax(76px,.6fr) repeat(3,minmax(92px,1fr)) minmax(150px,1.3fr);
     }
     #view-mes .card .card-top{display:contents}
     #view-mes .card .card-top>div{
       grid-column:1;grid-row:1;min-width:0;overflow:hidden;
-      padding:9px 8px 9px 14px;align-self:center;
+      padding:9px 8px 9px 14px;align-self:center;text-align:left;
     }
     #view-mes .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #view-mes .card .card-sub{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
-    #view-mes .card .card-top .paid-pill{grid-column:2;grid-row:1;justify-self:start;align-self:center;margin:0;font-size:10px;padding:3px 9px}
+    #view-mes .card .card-top .paid-pill{grid-column:2;grid-row:1;justify-self:center;align-self:center;margin:0;font-size:10px;padding:3px 9px}
     #view-mes .card .chips{
       display:grid;grid-template-columns:subgrid;grid-column:3/6;grid-row:1;gap:0;margin:0;
     }
@@ -483,37 +484,36 @@
     #view-mes .card .chips .chip.chip-due{background:rgba(192,48,74,.06)}
     #view-mes .card .chips .chip.chip-due .amt,#view-mes .card .chips .chip.chip-due .mk{color:var(--red)}
     #view-mes .card .chips .chip.na{opacity:.3}
-    /* Columna de acciones (WhatsApp / garantía): ancho FIJO, como el resto — por eso ya no
-       desalinea a las demás filas aunque esté vacía en la mayoría. Vuelve a la esquina de la
-       fila, como estaba antes, en vez de una fila aparte. */
+    /* Columna de acciones (WhatsApp / garantía): comparte columna con el resto de filas, así
+       que no las desalinea aunque esté vacía en la mayoría. Contenido centrado en su columna. */
     #view-mes .card .wa-row{
-      grid-column:6;grid-row:1;display:flex;flex-direction:column;align-items:flex-end;
-      gap:4px;padding:6px 10px 6px 4px;
+      grid-column:6;grid-row:1;display:flex;flex-direction:column;align-items:center;
+      gap:4px;padding:6px 10px;justify-self:center;
     }
     #view-mes .card .wa-row .contact{margin:0;padding:5px 9px;font-size:11px;border-radius:8px;white-space:nowrap}
     #view-mes .card .wa-row .contact svg{width:13px;height:13px}
-    #view-mes .card .pago-fecha{grid-column:1/3;padding:0 14px 8px;font-size:11px;min-height:auto;margin:0}
+    #view-mes .card .pago-fecha{grid-column:1/3;padding:0 14px 8px;font-size:11px;min-height:auto;margin:0;text-align:left}
     #view-mes .card .aviso-aumento,
     #view-mes .card .aj-info-line{grid-column:1/-1;margin:0;border-radius:0;padding:6px 14px;font-size:11.5px}
 
-    /* ── PROPIEDADES: 4 columnas fijas (Inmueble · Estado · Alquiler · Acciones). Ancho fijo
-       en todas, Acciones incluida, para que ninguna fila desalinee a las demás sin importar
-       si esa fila tiene 2 o 3 botones. ── */
-    #view-deptos .cards::before{content:'Inmueble'}
-    #view-deptos .card{
-      display:grid;grid-template-columns:340px 130px 180px 240px;padding:0;min-height:54px;
+    /* ── PROPIEDADES: 4 columnas que se ajustan solas (Inmueble · Estado · Alquiler ·
+       Acciones). Inmueble a la izquierda; el resto, centrado — sin importar si esa fila
+       tiene garantía, depósito o 2/3 botones: la columna es la misma para todas las filas. ── */
+    #view-deptos .cards{
+      grid-template-columns:minmax(220px,1.8fr) minmax(110px,.7fr) minmax(140px,1fr) minmax(170px,1.1fr);
     }
+    #view-deptos .cards::before{content:'Inmueble'}
     #view-deptos .card .card-top{display:contents}
     #view-deptos .card .card-top>div:first-child{
       grid-column:1;grid-row:1;min-width:0;overflow:hidden;
-      padding:10px 8px 10px 14px;align-self:center;
+      padding:10px 8px 10px 14px;align-self:center;text-align:left;
     }
     #view-deptos .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #view-deptos .card .card-sub{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
-    #view-deptos .card .estado-badge{grid-column:2;grid-row:1;justify-self:start;align-self:center;margin:0}
+    #view-deptos .card .estado-badge{grid-column:2;grid-row:1;justify-self:center;align-self:center;margin:0}
     #view-deptos .card .liq-line{
       grid-column:3;grid-row:1;border:none;padding:0 12px;font-size:11.5px;
-      display:block;color:var(--muted);align-self:center;
+      display:block;color:var(--muted);align-self:center;text-align:center;
     }
     /* :first-of-type NO sirve acá: .card-top también es un <div>, así que ninguna .liq-line
        es realmente "la primera de su tipo" entre hermanos <div>. Con el combinador ~ apuntamos
@@ -523,15 +523,15 @@
     #view-deptos .card .liq-line ~ .liq-line{display:none}
     #view-deptos .card .depto-notas{grid-column:1/-1;margin:0 14px 8px}
     #view-deptos .card .sheet-actions{
-      grid-column:4;grid-row:1;margin:0;padding:6px 10px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;
+      grid-column:4;grid-row:1;margin:0;padding:6px 10px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;
     }
     #view-deptos .card .sheet-actions .btn-sm{padding:6px 11px;font-size:11.5px;min-height:34px}
 
-    /* ── VENCIMIENTOS: 3 columnas (Inmueble · Estado · Acciones) ──── */
-    #view-alquileres .cards::before{content:'Inmueble\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Estado\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Acciones';white-space:pre}
-    #view-alquileres .card{
-      display:grid;grid-template-columns:minmax(0,1fr) 220px 240px;padding:0;min-height:54px;align-items:center;
+    /* ── VENCIMIENTOS: 3 columnas que se ajustan solas (Inmueble · Estado · Acciones) ──── */
+    #view-alquileres .cards{
+      grid-template-columns:minmax(220px,1.6fr) minmax(140px,.9fr) minmax(160px,1.1fr);
     }
+    #view-alquileres .cards::before{content:'Inmueble\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Estado\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0\00a0 Acciones';white-space:pre}
     #view-alquileres .card .card-top{
       grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:space-between;
       gap:8px;padding:10px 14px;margin:0;overflow:hidden;
@@ -540,38 +540,52 @@
     #view-alquileres .card .card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     #view-alquileres .card .card-sub{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
     #view-alquileres .card .foco-venc{
-      grid-column:2;grid-row:1;margin:0;padding:0 12px;font-size:12px;font-weight:600;
+      grid-column:2;grid-row:1;margin:0;padding:0 12px;font-size:12px;font-weight:600;text-align:center;
     }
     #view-alquileres .card .comp-line{grid-column:1/-1;grid-row:2;padding:0 14px 8px;margin:0}
     #view-alquileres .card .pub-q{grid-column:1/-1;grid-row:3;padding:6px 14px 2px;margin:0}
     #view-alquileres .card .seg{grid-column:1/-1;grid-row:4;margin:0 14px 10px}
     #view-alquileres .card .sheet-actions{
-      grid-column:3;grid-row:1;margin:0;padding:6px 10px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;
+      grid-column:3;grid-row:1;margin:0;padding:6px 10px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;
     }
     #view-alquileres .card .sheet-actions .btn-sm{padding:6px 11px;font-size:11.5px;min-height:34px}
 
-    /* ── GARANTES: grilla de columnas alineadas en todas las filas (nombre | activos | propiedades | al día | en reclamo | masa) ── */
+    /* ── GARANTES: misma lógica de grilla compartida — nombre | activos | propiedades | al
+       día | en reclamo | masa. Nombre a la izquierda; el resto, centrado. ── */
     #view-garantes .cards{
-      display:flex;flex-direction:column;gap:14px;
+      display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(100px,.7fr) repeat(4,minmax(90px,1fr));
+      column-gap:18px;row-gap:14px;
       background:transparent;box-shadow:none;overflow:visible;margin-bottom:22px;
     }
     #view-garantes .card{
-      display:grid;
-      grid-template-columns:minmax(200px,1.4fr) 120px repeat(4,minmax(0,1fr));
-      align-items:center;column-gap:18px;row-gap:10px;
+      display:grid;grid-template-columns:subgrid;grid-column:1/-1;
+      align-items:center;row-gap:10px;
       padding:16px 22px;background:#fff;border-radius:14px;
       box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 12px rgba(0,0,0,.04);border-bottom:none;
     }
     #view-garantes .card:hover{background:#fff}
     /* card-top y gar-stats "desaparecen" como cajas y sus hijos entran directo a la grilla del card */
     #view-garantes .card>.card-top{display:contents}
-    #view-garantes .card>.card-top>div:first-child{grid-column:1;min-width:0}
-    #view-garantes .gar-badge-ok,#view-garantes .gar-badge-red{grid-column:2;justify-self:start}
+    #view-garantes .card>.card-top>div:first-child{grid-column:1;min-width:0;text-align:left}
+    #view-garantes .gar-badge-ok,#view-garantes .gar-badge-red{grid-column:2;justify-self:center}
     #view-garantes .card>.gar-stats{display:contents}
     #view-garantes .gar-stat{margin:0;background:#f8fafc}
     #view-garantes .gar-insight{grid-column:1/-1;margin:0}
     #view-garantes .gar-details{grid-column:1/-1;margin:0;border-top:1px solid #f1f5f9;padding-top:4px}
     #view-garantes .card>.contact{grid-column:1/-1;justify-self:start;margin:0;white-space:nowrap}
+    /* Detalle de propiedades cubiertas: misma lógica de grilla compartida para que la fila
+       con botón "Avisar" no desalinee a las que no lo tienen. Nombre a la izquierda, resto centrado. */
+    #view-garantes .gar-list{
+      display:grid;grid-template-columns:minmax(160px,1fr) auto;column-gap:14px;row-gap:0;
+      margin-top:6px;border-top:1px solid var(--line);padding-top:8px;
+    }
+    #view-garantes .gar-row{
+      display:grid;grid-template-columns:subgrid;grid-column:1/-1;align-items:center;
+      padding:9px 0;border-bottom:1px solid var(--line);gap:0;
+    }
+    #view-garantes .gar-row:last-child{border-bottom:none}
+    #view-garantes .gar-row-info{grid-column:1;text-align:left}
+    #view-garantes .gar-row-right{grid-column:2;justify-self:center}
 
     /* ── DUEÑOS: tarjetas separadas, detalle full-width legible ──── */
     #view-duenos .cards{
