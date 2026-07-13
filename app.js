@@ -24,7 +24,10 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.duenos
     s.duenos=kept;(s.deptos||[]).forEach(d=>{if(remap[d.duenoId])d.duenoId=remap[d.duenoId];});
     return s;}}catch(e){}return {duenos:[],deptos:[],pagos:{},alquileres:[],config:{onboarded:false,organizador:{nombre:'',tel:''},pin:'',cobranza:{diaVencimiento:10}}};}
 function save(){
-  try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){console.warn('localStorage write failed:',e);}
+  _sheetGuarded=false;
+  let localOk=true;
+  try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){console.warn('localStorage write failed:',e);localOk=false;}
+  if(!localOk){setSaveStatus('error');toast('⚠️ No se pudo guardar en este dispositivo (memoria llena). Hacé una copia de seguridad desde Ajustes.');return;}
   setSaveStatus(navigator.onLine?'saving':'offline');
   pushRemote();
 }
@@ -33,7 +36,7 @@ function setSaveStatus(st){
   const el=document.getElementById('saveStatus');if(!el)return;
   clearTimeout(saveStatusT);
   el.className='save-status '+st;
-  el.textContent = st==='saving' ? 'Guardando…' : st==='offline' ? '⚠️ Sin conexión' : '✓ Guardado';
+  el.textContent = st==='saving' ? 'Guardando…' : st==='offline' ? '⚠️ Sin conexión' : st==='error' ? '⚠️ No se guardó' : '✓ Guardado';
   if(st==='saved')saveStatusT=setTimeout(()=>{el.className='save-status';},2500);
 }
 let pushT;
@@ -86,7 +89,7 @@ function habilesHasta(fecha){if(!fecha)return null;const[y,m,d]=fecha.split('-')
 function openFechaPago(depId){const c=(state.pagos[ym]||{})[depId]||{};const f=c.fecha||(ym+'-01');
   openSheet(`<h3>Fecha de pago</h3><p class="hint">¿Qué día pagó el alquiler de ${ymLabel(ym)}?</p>
     <div class="field"><label>Fecha</label><input id="fp_fecha" type="date" value="${f}"></div>
-    <div class="sheet-actions"><button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button><button class="btn btn-primary" onclick="(function(){const v=document.getElementById('fp_fecha').value;if(v){setFechaPago('${depId}',v);closeSheet();}})()">Guardar</button></div>`);
+    <div class="sheet-actions"><button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button><button class="btn btn-primary" onclick="(function(){const v=document.getElementById('fp_fecha').value;if(v){setFechaPago('${depId}',v);closeSheet();}})()">Guardar</button></div>`,true);
 }
 /* Historial de puntualidad del inquilino de un depto (usa solo meses con fecha real) */
 function historialPago(dep){
@@ -252,7 +255,7 @@ function renderMes(){
   const grupos={};list.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
   const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
   oidsOrdenados.forEach(oid=>{
-    const deps=grupos[oid].sort((a,b)=>{const sa=estaAlDia(a)?1:0,sb=estaAlDia(b)?1:0;return sa-sb||(a.nombre||'').localeCompare(b.nombre||'');});
+    const deps=grupos[oid].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
     html+=`<h2 class="section-name">${esc(ownerName(oid))} · ${deps.length} ${deps.length===1?'propiedad':'propiedades'}</h2><div class="cards">`;
     deps.forEach(dep=>{html+=cardHtml(dep);});
     html+='</div>';
@@ -265,12 +268,12 @@ function onMesOwner(v){mesOwner=v;renderMes();}
 function openRenovar(depId){
   const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;
   let baseEnd=(dep.contratoFin&&cmpYm(ymOf(dep.contratoFin),ymNow())>=0)?dep.contratoFin:new Date().toISOString().slice(0,10);
-  const[y,m,d]=baseEnd.split('-').map(Number);const nd=new Date(y+3,m-1,d);nd.setDate(nd.getDate()-1);
+  const[y,m,d]=baseEnd.split('-').map(Number);const nd=new Date(y+2,m-1,d);nd.setDate(nd.getDate()-1);
   const sug=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(nd.getDate()).padStart(2,'0');
   openSheet(`<h3>Renovar contrato</h3><p class="hint">${esc(dep.nombre)} · ${esc(dep.inquilino||'')}</p>
     <p class="sub" style="margin-top:2px">Sigue el mismo inquilino y alquiler; solo se extiende la fecha de fin. Los aumentos por IPC continúan su curso normal.</p>
     <div class="field"><label for="rv_fin">Nueva fecha de fin</label><input id="rv_fin" type="date" value="${sug}"></div>
-    <div class="sheet-actions"><button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button><button class="btn btn-primary" onclick="guardarRenovacion('${depId}')">Renovar</button></div>`);
+    <div class="sheet-actions"><button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button><button class="btn btn-primary" onclick="guardarRenovacion('${depId}')">Renovar</button></div>`,true);
 }
 function guardarRenovacion(depId){const dep=state.deptos.find(d=>d.id===depId);if(!dep)return;const v=document.getElementById('rv_fin').value;if(!v){toast('Elegí la nueva fecha de fin');return;}dep.contratoFin=v;dep.estado='alquilado';save();closeSheet();render();toast('Contrato renovado hasta '+v.split('-').reverse().join('/'));}
 function onDashOwner(v){dashOwner=v;renderDashboard();}
@@ -311,7 +314,8 @@ function renderDuenos(){
   const el=document.getElementById('view-duenos');
   if(state.duenos.length===0){el.innerHTML=empty('&#128101;','No hay dueños cargados.','Agregalos desde la pestaña “Propiedades”.');return;}
   let html='<div class="cards">',any=false;
-  state.duenos.forEach(d=>{
+  const duenosOrdenados=state.duenos.slice().sort((a,b)=>ownerName(a.id).localeCompare(ownerName(b.id)));
+  duenosOrdenados.forEach(d=>{
     const deps=state.deptos.filter(x=>x.duenoId===d.id&&activoEnMes(x));if(deps.length===0)return;any=true;
     const cobrado={ARS:0,USD:0},com={ARS:0,USD:0},neto={ARS:0,USD:0},pendLiq={ARS:0,USD:0},masa={ARS:0,USD:0};const rows=[],transferidos=[];let pendTransf=0,cobrados=0,gestionables=0;
     deps.forEach(dep=>{const p=pagos(dep.id);const rent=alquilerEnMes(dep);const cur=dep.moneda||'ARS';const c=dep.modalidad==='dueno'?0:rent*(dep.comisionPct||0)/100;
@@ -519,9 +523,10 @@ function renderDeptos(){
   html+=`<div class="add-fab"><button class="btn btn-primary" onclick="openAgregar()">+ Agregar propiedad</button></div>`;
   if(state.deptos.length===0){html+=empty('&#127970;','Empezá cargando tus propiedades.','Cada uno se asigna a un dueño, con su alquiler, comisión y modalidad de cobro.');el.innerHTML=html;return;}
   const grupos={};state.deptos.forEach(d=>{(grupos[d.duenoId]=grupos[d.duenoId]||[]).push(d);});
-  Object.keys(grupos).forEach(oid=>{
+  const oidsOrdenados=Object.keys(grupos).sort((a,b)=>ownerName(a).localeCompare(ownerName(b)));
+  oidsOrdenados.forEach(oid=>{
     html+=`<h2 class="section-name">${esc(ownerName(oid))}</h2><div class="cards">`;
-    grupos[oid].forEach(dep=>{
+    grupos[oid].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).forEach(dep=>{
       const oc=ocupacion(dep);
       html+=`<div class="card">
         <div class="card-top"><div><div class="card-name">${esc(dep.nombre)}</div><div class="card-sub">${esc(dep.inquilino||'Sin inquilino')}</div></div>
@@ -721,11 +726,17 @@ function sparkline(serie,cur){
 function empty(em,t,d){return `<div class="empty"><div class="em">${em}</div><p><strong>${t}</strong><br>${d}</p></div>`;}
 
 let _sheetPrevFocus=null;
-function openSheet(html){const s=document.getElementById('sheet');_sheetPrevFocus=document.activeElement;s.innerHTML='<div class="grab" id="sheetGrab" aria-hidden="true"></div><button class="sheet-close" onclick="closeSheet()" aria-label="Cerrar">✕</button>'+html;document.getElementById('sheetBg').classList.add('open');s.scrollTop=0;initSheetSwipe(s);
+/* Guard anti-pérdida de datos: cuando se abre una ficha de carga/edición con openSheet(html,true),
+   cualquier intento de salir (afuera, swipe, Escape, X, Cancelar/Volver) confirma antes de descartar.
+   Se desarma solo cuando save() se ejecuta con éxito. */
+let _sheetGuarded=false;
+function openSheet(html,guarded){const s=document.getElementById('sheet');_sheetPrevFocus=document.activeElement;s.innerHTML='<div class="grab" id="sheetGrab" aria-hidden="true"></div><button class="sheet-close" onclick="closeSheet()" aria-label="Cerrar">✕</button>'+html;document.getElementById('sheetBg').classList.add('open');s.scrollTop=0;initSheetSwipe(s);_sheetGuarded=!!guarded;
   const h=s.querySelector('h3');if(h){h.id='sheet-title';}else{s.removeAttribute('aria-labelledby');s.setAttribute('aria-label','Panel');}
   // Enfocar el primer control (o el título) para lectores de pantalla y teclado
   setTimeout(()=>{const f=s.querySelector('input,select,textarea,button:not(.sheet-close)');(f||s.querySelector('.sheet-close')||s).focus&&(f||s.querySelector('.sheet-close')||s).focus();},50);}
-function closeSheet(){document.getElementById('sheetBg').classList.remove('open');const s=document.getElementById('sheet');if(s)s.style.transform='';if(_sheetPrevFocus&&_sheetPrevFocus.focus){try{_sheetPrevFocus.focus();}catch(e){}}_sheetPrevFocus=null;}
+function guardedNav(fn){if(_sheetGuarded&&!confirm('Tenés datos cargados sin guardar. Si salís ahora se pierden. ¿Salir igual?'))return;_sheetGuarded=false;fn();}
+function closeSheet(){guardedNav(_closeSheetNow);}
+function _closeSheetNow(){document.getElementById('sheetBg').classList.remove('open');const s=document.getElementById('sheet');if(s)s.style.transform='';if(_sheetPrevFocus&&_sheetPrevFocus.focus){try{_sheetPrevFocus.focus();}catch(e){}}_sheetPrevFocus=null;}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){const bg=document.getElementById('sheetBg');if(bg&&bg.classList.contains('open'))closeSheet();}});
 // Trap de foco dentro del sheet abierto (Tab cicla)
 document.addEventListener('keydown',function(e){if(e.key!=='Tab')return;const bg=document.getElementById('sheetBg');if(!bg||!bg.classList.contains('open'))return;const s=document.getElementById('sheet');const f=[...s.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(el=>el.offsetParent!==null||el===document.activeElement);if(!f.length)return;const first=f[0],last=f[f.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}});
@@ -834,13 +845,13 @@ function openDepto(id,initEstado){
 
     <div class="sheet-actions" style="margin-top:8px">
       <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveDepto('${id||''}')">Guardar</button></div>`);
+      <button class="btn btn-primary" onclick="saveDepto('${id||''}')">Guardar</button></div>`,true);
 }
 function pickEstado(v){estSel=v;const btns=document.querySelectorAll('#f_est button');btns.forEach((b,i)=>{b.classList.toggle('on',i===(v==='alquilado'?0:1));b.setAttribute('aria-pressed',String(i===(v==='alquilado'?0:1)));});const show=v==='alquilado';const inq=document.getElementById('inqSection');const con=document.getElementById('contractSection');if(inq)inq.style.display=show?'block':'none';if(con)con.style.display=show?'block':'none';}
 function toggleServ(k){const i=serviciosSel.indexOf(k);if(i>=0)serviciosSel.splice(i,1);else serviciosSel.push(k);const btns=document.querySelectorAll('#f_serv .pick-chip');SERVICIOS.forEach((s,idx)=>{if(btns[idx])btns[idx].classList.toggle('on',serviciosSel.includes(s.k));});}
 function pickMoneda(v){monedaSel=v;document.querySelectorAll('#f_mon button').forEach((b,i)=>b.classList.toggle('on',(v==='ARS')?i===0:i===1));}
 function pickDepMoneda(v){depMonedaSel=v;document.querySelectorAll('#f_depmon button').forEach((b,i)=>b.classList.toggle('on',(v==='ARS')?i===0:i===1));}
-function setFinDefault(){const ini=document.getElementById('f_ini').value;const fin=document.getElementById('f_fin');if(!ini||!fin)return;const[y,m,d]=ini.split('-').map(Number);const end=new Date(y+3,m-1,d);end.setDate(end.getDate()-1);fin.value=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');}
+function setFinDefault(){const ini=document.getElementById('f_ini').value;const fin=document.getElementById('f_fin');if(!ini||!fin)return;const[y,m,d]=ini.split('-').map(Number);const end=new Date(y+2,m-1,d);end.setDate(end.getDate()-1);fin.value=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');}
 function pickFlow(v){flowSel=v;document.querySelectorAll('#f_flow button').forEach((b,i)=>b.classList.toggle('on',(v==='vos')?i===0:i===1));document.getElementById('comWrap').style.display=v==='dueno'?'none':'block';}
 function pickIPC(v){ipcSel=v;document.querySelectorAll('#f_ipc button').forEach((b,i)=>b.classList.toggle('on',(v==='si')?i===0:i===1));document.getElementById('ipcFreqWrap').style.display=v==='si'?'block':'none';}
 function toggleGarTel(){const emp=document.getElementById('f_garemp').value.trim();document.getElementById('garTelWrap').style.display=emp?'block':'none';}
@@ -1274,7 +1285,7 @@ function openAlquiler(preId){const dp=preId?state.deptos.find(d=>d.id===preId):n
     <div class="field"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600"><input type="checkbox" id="al_update" checked style="width:20px;height:20px"> Actualizar la propiedad (inquilino, alquiler, contrato)</label></div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" onclick="closeSheet()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveAlquiler()">Guardar</button></div>`);
+      <button class="btn btn-primary" onclick="saveAlquiler()">Guardar</button></div>`,true);
 }
 let alqTipo='nuevo';function pickTipo(v){alqTipo=v;document.querySelectorAll('#al_tipo button').forEach((b,i)=>b.classList.toggle('on',(v==='nuevo')?i===0:i===1));}
 function saveAlquiler(){const deptoId=document.getElementById('al_depto').value;const dep=state.deptos.find(d=>d.id===deptoId);if(!dep){toast('Cargá una propiedad primero');return;}
@@ -1291,20 +1302,21 @@ function openSettings(){
   const ownersHtml=state.duenos.length?state.duenos.map(o=>{const n=state.deptos.filter(d=>d.duenoId===o.id).length;return `<div class="owner-row"><div><div class="nm">${esc(ownerName(o.id))}</div><div class="sm">${n} ${n===1?'propiedad':'propiedades'}${o.telefono?' · 📱 '+esc(o.telefono):''}</div></div><div class="acts"><button class="btn-ghost" onclick="editOwner('${o.id}')">Editar</button>${n===0?`<button class="btn-danger" onclick="delOwner('${o.id}')">Borrar</button>`:''}</div></div>`;}).join(''):'<div class="sm" style="color:var(--muted);font-size:13px">Todavía no hay dueños.</div>';
   openSheet(`
     <h3>Ajustes</h3>
-    <p class="hint">Los datos viven en este dispositivo. Guardá una copia cada tanto.</p>
+    <p class="hint">${sbUser?'Todo lo que cargás se guarda solo, automáticamente, en la nube — podés entrar desde otro celu o computadora y vas a ver lo mismo.':'Los datos viven en este dispositivo. Guardá una copia cada tanto.'}</p>
     <div class="settings-item"><div><div class="t">Tu perfil</div><div class="d">${org.nombre?esc(org.nombre):'Sin nombre'}${org.tel?' · '+esc(org.tel):''}</div></div><button class="btn btn-ghost btn-sm" onclick="editOrganizador()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Cambiar contraseña</div><div class="d">Actualizá tu clave de acceso</div></div><button class="btn btn-ghost btn-sm" onclick="editPassword()">Cambiar</button></div>
     <div class="settings-item"><div><div class="t">Ver tutorial</div><div class="d">Repasá cómo funciona el panel</div></div><button class="btn btn-ghost btn-sm" onclick="startTour()">Ver</button></div>
     <div class="settings-item"><div><div class="t">Letra más grande</div><div class="d">Agranda los textos de toda la app</div></div><button class="btn ${cfg.textoGrande?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleTextoGrande()">${cfg.textoGrande?'Activada ✓':'Activar'}</button></div>
     <div class="settings-item"><div><div class="t">Vencimiento por defecto</div><div class="d">El pago vence el día ${cob.diaVencimiento||10} · después se avisa a la garantía</div></div><button class="btn btn-ghost btn-sm" onclick="editCobranza()">Editar</button></div>
     <div class="settings-item"><div><div class="t">Mensajes</div><div class="d">Personalizá los textos automáticos</div></div><button class="btn btn-ghost btn-sm" onclick="editMensajes()">Editar</button></div>
-    <div class="settings-item"><div><div class="t">Descargar copia</div><div class="d">Archivo con todos tus datos</div></div><button class="btn btn-ghost btn-sm" onclick="exportData()">Descargar</button></div>
+    <div class="settings-item"><div><div class="t">Excel de propiedades</div><div class="d">Bajá todas tus propiedades a un Excel — si algún día reseteás todo, lo volvés a subir y quedan cargadas de nuevo</div></div><button class="btn btn-ghost btn-sm" onclick="exportarExcel()">Descargar</button></div>
+    <div class="settings-item"><div><div class="t">Descargar copia</div><div class="d">Archivo con todos tus datos (incluye pagos e historial)</div></div><button class="btn btn-ghost btn-sm" onclick="exportData()">Descargar</button></div>
     <div class="settings-item"><div><div class="t">Restaurar copia</div><div class="d">Cargar un archivo guardado</div></div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">Elegir</button></div>
     <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
     <h2 class="section" style="margin-top:20px">Dueños</h2>
     <div class="card" style="box-shadow:none;border:1px solid var(--line)">${ownersHtml}</div>
     <div class="settings-item" style="margin-top:14px"><div><div class="t">Cerrar sesión</div><div class="d">Salís de la cuenta en este dispositivo</div></div><button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button></div>
-    <div class="settings-item" style="margin-top:14px"><div><div class="t" style="color:var(--red)">Borrar todo</div><div class="d">Empezar de cero</div></div><button class="btn btn-danger btn-sm" onclick="wipe()">Borrar</button></div>
+    <div class="settings-item" style="margin-top:14px"><div><div class="t" style="color:var(--red)">Borrar todo</div><div class="d">Empezar de cero — descargá antes el Excel o la copia si después la vas a necesitar</div></div><button class="btn btn-danger btn-sm" onclick="wipe()">Borrar</button></div>
     <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:16px">${state.deptos.length} propiedades · ${state.duenos.length} dueños · ${state.alquileres.length} alquileres</div>`);
 }
 function editOwner(id){const o=owner(id);
@@ -1317,12 +1329,38 @@ function editOwner(id){const o=owner(id);
       <div class="field"><label for="o_dni">DNI</label><input id="o_dni" inputmode="numeric" value="${esc(o.dni||'')}"></div>
       <div class="field"><label for="o_tel">Teléfono</label><input id="o_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${esc(o.telefono||'')}"></div></div>
     <div class="sheet-actions">
-      <button class="btn btn-ghost" onclick="openSettings()">Volver</button>
-      <button class="btn btn-primary" onclick="saveOwner('${id}')">Guardar</button></div>`);
+      <button class="btn btn-ghost" onclick="guardedNav(openSettings)">Volver</button>
+      <button class="btn btn-primary" onclick="saveOwner('${id}')">Guardar</button></div>`,true);
 }
 function saveOwner(id){const o=owner(id);const nm=document.getElementById('o_nombre').value.trim();const ap=document.getElementById('o_ap').value.trim();if(!ap&&!nm){toast('Poné apellido y nombre');return;}o.apellido=ap;o.nombre=nm;o.dni=document.getElementById('o_dni').value.trim();o.telefono=document.getElementById('o_tel').value.trim();save();openSettings();render();toast('Dueño actualizado');}
 function delOwner(id){if(!confirm('¿Borrar este dueño?'))return;state.duenos=state.duenos.filter(d=>d.id!==id);save();openSettings();render();toast('Dueño borrado');}
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='alquileres-'+ymNow()+'.json';a.click();toast('Copia descargada');}
+function exportarExcel(){
+  if(typeof XLSX==='undefined'){toast('Se está cargando el generador… probá de nuevo en unos segundos');return;}
+  if(!state.deptos.length){toast('Todavía no cargaste ninguna propiedad');return;}
+  const filas=state.deptos.map(d=>{
+    const o=owner(d.duenoId)||{};
+    const dep=d.deposito||{};
+    return [
+      d.calle||'',d.numero||'',d.piso||'',d.depto||'',
+      d.estado==='vacio'?'vacío':'alquilado',
+      o.apellido||'',o.nombre||'',o.dni||'',o.telefono||'',
+      d.inqApellido||'',d.inqNombre||'',d.inqDni||'',d.telInquilino||'',
+      d.garantiaEmpresa||'',d.garantiaMail||'',
+      d.moneda||'ARS',d.alquilerInicial||'',d.modalidad==='dueno'?'dueño':'vos',d.comisionPct||'',
+      d.ajusteIPC?'sí':'no',d.ajusteMeses||'',d.diaVencimiento||'',
+      d.contratoInicio||'',d.contratoFin||'',
+      (d.serviciosList||[]).join(';'),
+      dep.monto||'',dep.moneda||'',dep.nota||'',
+      d.notas||''
+    ];
+  });
+  const ws=XLSX.utils.aoa_to_sheet([PLANTILLA_COLS,...filas]);
+  ws['!cols']=PLANTILLA_COLS.map(()=>({wch:18}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Propiedades');
+  XLSX.writeFile(wb,'propiedades-'+ymNow()+'.xlsx');
+  toast('Excel descargado — lo podés volver a subir desde "Agregar propiedad › Cargar desde Excel"');
+}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.duenos)throw 0;if(!d.config)d.config={onboarded:true,organizador:{nombre:'',tel:''},pin:''};state=d;save();closeSheet();render();toast('Datos restaurados');}catch(x){toast('Archivo inválido');}};r.readAsText(f);}
 function wipe(){if(!confirm('¿Borrar TODOS los datos? No se puede deshacer.'))return;state={duenos:[],deptos:[],pagos:{},alquileres:[],config:state.config};save();closeSheet();render();toast('Todo borrado');}
 
@@ -1377,7 +1415,7 @@ function editOrganizador(){const cfg=state.config;const o=cfg.organizador||{};
     <p class="hint">Con esto se firman los recordatorios que le mandás por WhatsApp a los inquilinos.</p>
     <div class="field"><label>Tu nombre</label><input id="og_nombre" placeholder="Ej: Marta" value="${esc(o.nombre||'')}"></div>
     <div class="field"><label>Tu WhatsApp</label><input id="og_tel" inputmode="tel" placeholder="Ej: 11 5555 5555" value="${esc(o.tel||'')}"></div>
-    <div class="sheet-actions"><button class="btn btn-ghost" onclick="openSettings()">Volver</button><button class="btn btn-primary" onclick="saveOrganizador()">Guardar</button></div>`);
+    <div class="sheet-actions"><button class="btn btn-ghost" onclick="guardedNav(openSettings)">Volver</button><button class="btn btn-primary" onclick="saveOrganizador()">Guardar</button></div>`,true);
 }
 function saveOrganizador(){const cfg=state.config;cfg.organizador={nombre:document.getElementById('og_nombre').value.trim(),tel:document.getElementById('og_tel').value.trim()};save();openSettings();render();toast('Perfil guardado');}
 function editCobranza(){const c=(state.config&&state.config.cobranza)||{};
@@ -1385,7 +1423,7 @@ function editCobranza(){const c=(state.config&&state.config.cobranza)||{};
     <h3>Vencimiento por defecto</h3>
     <p class="hint">Día corrido del mes en que vence el pago. Ej: 10 → el día 11 ya está vencido. Desde la mitad del plazo aparece el botón para recordarle al inquilino; una vez vencido, el aviso pasa a la garantía. Cada propiedad puede tener su propio día.</p>
     <div class="field"><label>Día de vencimiento (corrido)</label><input id="cb_venc" type="number" inputmode="numeric" min="1" max="31" value="${c.diaVencimiento||10}"></div>
-    <div class="sheet-actions"><button class="btn btn-ghost" onclick="openSettings()">Volver</button><button class="btn btn-primary" onclick="saveCobranza()">Guardar</button></div>`);
+    <div class="sheet-actions"><button class="btn btn-ghost" onclick="guardedNav(openSettings)">Volver</button><button class="btn btn-primary" onclick="saveCobranza()">Guardar</button></div>`,true);
 }
 function saveCobranza(){const v=parseInt(document.getElementById('cb_venc').value);const dia=isNaN(v)?10:Math.min(31,Math.max(1,v));state.config.cobranza={diaVencimiento:dia};save();openSettings();render();toast('Vencimiento actualizado');}
 function editPassword(){
@@ -1395,14 +1433,14 @@ function editPassword(){
     <div class="field"><label>Nueva contraseña</label><input id="pw_new" type="password" placeholder="••••••"></div>
     <div class="field"><label>Repetir contraseña</label><input id="pw_rep" type="password" placeholder="••••••"></div>
     <div class="gate-err" id="pw_err"></div>
-    <div class="sheet-actions"><button class="btn btn-ghost" onclick="openSettings()">Volver</button><button class="btn btn-primary" onclick="savePassword()">Guardar</button></div>`);
+    <div class="sheet-actions"><button class="btn btn-ghost" onclick="guardedNav(openSettings)">Volver</button><button class="btn btn-primary" onclick="savePassword()">Guardar</button></div>`,true);
 }
 async function savePassword(){
   const a=document.getElementById('pw_new').value,b=document.getElementById('pw_rep').value;const err=document.getElementById('pw_err');
   if(a.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres.';return;}
   if(a!==b){err.textContent='Las contraseñas no coinciden.';return;}
   err.textContent='Guardando…';
-  try{const{error}=await sb.auth.updateUser({password:a});if(error){err.textContent=error.message||'No se pudo cambiar la contraseña.';return;}closeSheet();toast('Contraseña actualizada');}
+  try{const{error}=await sb.auth.updateUser({password:a});if(error){err.textContent=error.message||'No se pudo cambiar la contraseña.';return;}_sheetGuarded=false;closeSheet();toast('Contraseña actualizada');}
   catch(e){err.textContent='No se pudo cambiar la contraseña. Reintentá con internet.';}
 }
 const TPL_META={
@@ -1426,8 +1464,8 @@ function editPlantilla(key){
     <div class="tpl-preview" id="tpl_prev"></div>
     <div class="sheet-actions" style="margin-top:12px">
       <button class="btn btn-danger btn-sm" onclick="resetPlantilla('${key}')">Restaurar</button>
-      <button class="btn btn-ghost btn-sm" onclick="editMensajes()">Volver</button>
-      <button class="btn btn-primary btn-sm" onclick="savePlantilla('${key}')">Guardar</button></div>`);
+      <button class="btn btn-ghost btn-sm" onclick="guardedNav(()=>editMensajes())">Volver</button>
+      <button class="btn btn-primary btn-sm" onclick="savePlantilla('${key}')">Guardar</button></div>`,true);
   const area=document.getElementById('tpl_area');
   const upd=()=>{document.getElementById('tpl_prev').textContent='Vista previa: '+previewTpl(key,area.value);};
   area.addEventListener('input',upd);upd();

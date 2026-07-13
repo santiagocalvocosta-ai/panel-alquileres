@@ -27,6 +27,9 @@
       <button onclick="changeMonth(-1)" aria-label="Mes anterior">&#8249;</button>
       <button class="month-label" id="monthLabel" onclick="goToday()" title="Ir al mes actual" aria-label="Mes mostrado. Tocá para ir al mes actual.">&mdash;</button>
       <button onclick="changeMonth(1)" aria-label="Mes siguiente">&#8250;</button>
+      <button class="month-hist-btn" onclick="openHistorial()" aria-label="Ver historial de meses">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+      </button>
     </div>
     <div class="month-bar-desktop" id="monthBarDesktop" aria-label="Selector de mes"></div>
   </div>
